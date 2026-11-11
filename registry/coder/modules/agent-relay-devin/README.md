@@ -57,8 +57,12 @@ button is created.
   an ephemeral workspace secret, which the agent injects as
   `AGENT_RELAY_DEVIN_TOKEN`. Without it the start step has no token, so the
   workspace only idles.
-- A Linux image on `x86_64` or `arm64` with `bash`, `git`, `curl` or `wget`,
-  and `sha256sum` (or `shasum`). Devin clones repositories with `git`.
+- A Linux image on `x86_64` or `arm64` with `git`, `curl` or `wget`,
+  `sha256sum` (or `shasum`), `env` with `-0` and `-u` (GNU coreutils or
+  BusyBox), and bash 4.4 or newer with the `compgen` builtin. Devin clones
+  repositories with `git`. A bash built without `compgen` cannot clear the
+  remote's environment, so the module refuses to start the remote and
+  reports `failed launch`.
 - Optional: `ffmpeg`, Chrome or Chromium (`chrome_path`), and a display
   (`DISPLAY` or `WAYLAND_DISPLAY`, with `desktop = true`) for Devin's browser
   and desktop tools.
@@ -75,10 +79,14 @@ session, Devin returns a connect token and a gateway URL for it. The relay
 sends the token as an ephemeral workspace secret, which the agent injects as
 `AGENT_RELAY_DEVIN_TOKEN`; it never appears in the build's parameters or
 Terraform state, and the template should not set `AGENT_RELAY_DEVIN_TOKEN`
-itself. The start step writes it to `remote-token` (mode `0600`) under the
-module directory and the supervisor unsets the variable. The remote reads the
-file into its own environment just before it starts, and the supervisor
-deletes the file when the remote exits.
+itself. The start step writes it to a file (mode `0600`) in a fresh
+directory (mode `0700`) on non-persistent storage, under `$XDG_RUNTIME_DIR`
+when it is set and writable, else `/tmp`, and starts the supervisor with
+`AGENT_RELAY_DEVIN_TOKEN` removed from its environment. The remote reads the
+file into its own environment just before it starts and deletes it at once.
+The supervisor removes the directory when it exits, and the next start or
+stop removes any directory a killed run left behind. Nothing under `$HOME`
+ever holds the token.
 
 A start without the token, for example a person restarting the workspace,
 removes any token left on disk, reports `idle`, and starts nothing.
@@ -96,6 +104,10 @@ asked for:
    `$HOME/.devin/worker/cache` with the verified hash beside it.
 3. A later start for the same version reuses the cached binary after
    re-checking it against that hash, and downloads nothing.
+
+Downloads with `curl` use only https, redirects included, unless
+`static_base_url` is a loopback `http` mirror. `wget`, used only when `curl`
+is missing, has no such restriction.
 
 The install step never fails the build. A download that fails reports
 `failed download`, a hash that does not match reports `failed checksum`, and
@@ -122,7 +134,7 @@ execs a binary with another name, or a live remote reads as `orphaned`.
 ## Clean environment
 
 `devin-remote serve` starts in `workdir` with a cleared environment. Only
-these variables reach it, each only when the agent has it set: `PATH`,
+these variables are kept, each only when the agent has it set: `PATH`,
 `HOME`, `USER`, `LOGNAME`, `TMPDIR`, `LANG`, `TZ`, `DISPLAY`,
 `WAYLAND_DISPLAY`, and `XAUTHORITY`. The module adds Devin's own:
 
@@ -134,12 +146,26 @@ these variables reach it, each only when the agent has it set: `PATH`,
 
 Everything Devin runs inherits this environment. The connect token is in it
 because Devin's spawn contract requires `DEVIN_OUTPOST_CONNECT_TOKEN`; the
-module keeps it off every command line, but any process in the session can
-read it. The agent's own variables, `CODER_AGENT_TOKEN` among them, are not
-passed. Neither is anything other modules add with `coder_env`, for example
-git identity or credential helper variables. Give Devin repository access
-through files it can read instead, such as `~/.gitconfig` and a git
-credential store written by a setup script.
+module keeps its value off every command line, but any process in the
+session can read it. The agent's own variables, `CODER_AGENT_TOKEN` among
+them, are not passed. Neither is anything other modules add with `coder_env`,
+for example git identity or credential helper variables. Give Devin
+repository access through files it can read instead, such as `~/.gitconfig`
+and a git credential store written by a setup script.
+
+Just before it starts the remote, the module lists the environment the
+remote would really receive with `env -0`. Entries bash cannot hold as
+variables (a name such as `bad-name` or `1X`, or an old-style
+`BASH_FUNC_name()`), and readonly variables it could not unset, are dropped
+with `env -u`, which puts only their names on the command line. If that list
+cannot be read, the remote does not start and the status is `failed launch`.
+
+The clean environment is defense in depth, not a security boundary.
+`devin-remote` and everything Devin runs share the Coder agent's uid, so they
+can read the `/proc/<pid>/environ` of the agent and of other processes it
+starts, which typically includes `CODER_AGENT_TOKEN`, and any file the
+agent's user can read. Isolate sessions with the workspace itself: one
+session per workspace, and nothing in it that the session should not see.
 
 ## Persistence for suspend and resume
 
@@ -203,6 +229,7 @@ to log `serving_log_pattern`, then stops it and reports
 | `failed remote-binary-missing` | `remote_binary` is not in the image, or the verified binary is gone      |
 | `failed invalid-session`       | the session id is not a safe path component, or the gateway URL is empty |
 | `failed connect-timeout`       | the remote did not connect within `connect_timeout` and was stopped      |
+| `failed launch`                | the token could not be staged, or the remote gave up before it ran       |
 
 The connected line is coloured; the status script strips ANSI escape
 sequences before it matches `serving_log_pattern` as a fixed string.
@@ -243,4 +270,6 @@ the same cleanup source and reports failures in its Coder script output:
 | `cleanup-complete`                       | fresh startup generation; removed on workspace stop     |
 | `logs/*.log`                             | output of each step, plus the remote's own `remote.log` |
 | `remote-state`                           | the supervisor's lifecycle line (`state_file`)          |
-| `remote-token`                           | the connect token, removed when the remote exits        |
+
+The staged connect token is the one file kept outside this tree; see
+[Connect token](#connect-token).

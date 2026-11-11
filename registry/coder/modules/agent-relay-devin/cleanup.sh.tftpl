@@ -21,9 +21,23 @@ cleanup_marker="${module_directory}/cleanup-complete"
 rm -f "$cleanup_marker" "$cleanup_marker.tmp" || echo "Cannot remove cleanup marker" >&2
 
 state_file="${state_file}"
-token_file="${module_directory}/remote-token"
+# Each start stages the connect token in its own 0700 runtime directory on
+# non-persistent storage, and a killed run can leave one behind. Earlier,
+# unreleased builds of this module staged it in remote-token under $HOME,
+# which may be a persistent volume, so that file is removed too.
+legacy_token_file="${module_directory}/remote-token"
+runtime_prefix="agent-relay-devin-$UID."
+remove_runtime_dirs() {
+	local dir
+	for dir in "$${XDG_RUNTIME_DIR:-/tmp}/$runtime_prefix"* "/tmp/$runtime_prefix"*; do
+		if [ -d "$dir" ] && [ ! -L "$dir" ] && [ -O "$dir" ]; then
+			rm -rf "$dir" || echo "Cannot remove $dir" >&2
+		fi
+	done
+}
 record_dirs=("${module_directory}/supervisors" "${module_directory}/remotes")
-rm -f "$state_file" "$state_file.tmp" "$token_file" "$token_file.tmp" || echo "Cannot remove previous Devin state or token" >&2
+rm -f "$state_file" "$state_file.tmp" "$legacy_token_file" "$legacy_token_file.tmp" || echo "Cannot remove previous Devin state or token" >&2
+remove_runtime_dirs
 mkdir -p "$${record_dirs[@]}" "$(dirname "$state_file")" || echo "Cannot create Devin record directories" >&2
 
 boot_id="$(cat /proc/sys/kernel/random/boot_id 2>/dev/null || true)"
@@ -142,7 +156,8 @@ if [ "$${#pending[@]}" -gt 0 ]; then
 fi
 
 # A supervisor may have written state or a token while TERM was in flight.
-rm -f "$state_file" "$state_file.tmp" "$token_file" "$token_file.tmp" || echo "Cannot remove previous Devin state or token" >&2
+rm -f "$state_file" "$state_file.tmp" "$legacy_token_file" "$legacy_token_file.tmp" || echo "Cannot remove previous Devin state or token" >&2
+remove_runtime_dirs
 # A later start gets a new generation even when an old process survived.
 for claim in "${module_directory}/started"/*; do
 	if [ -d "$claim" ]; then rmdir "$claim" || true; fi

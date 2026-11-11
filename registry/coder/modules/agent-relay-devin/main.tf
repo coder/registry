@@ -93,9 +93,11 @@ variable "workdir" {
   type        = string
   default     = "$HOME/devin"
 
+  # Expanded into the start script and the supervisor, so it is restricted
+  # to an absolute path or one under $HOME made of safe characters.
   validation {
-    condition     = can(regex("^(\\$HOME|/)[A-Za-z0-9._/@+-]*$", var.workdir))
-    error_message = "workdir must be an absolute path or start with $HOME, and contain only letters, digits, and . _ / @ + -."
+    condition     = can(regex("^(\\$HOME(/[A-Za-z0-9._/@+-]*)?|/[A-Za-z0-9._/@+-]*)$", var.workdir))
+    error_message = "workdir must be an absolute path, $HOME, or a path under $HOME/, made of letters, digits, and . _ / @ + - only."
   }
 }
 
@@ -105,8 +107,8 @@ variable "state_dir" {
   default     = "$HOME/.devin/worker/sessions"
 
   validation {
-    condition     = can(regex("^(\\$HOME|/)[A-Za-z0-9._/@+-]*$", var.state_dir))
-    error_message = "state_dir must be an absolute path or start with $HOME, and contain only letters, digits, and . _ / @ + -."
+    condition     = can(regex("^(\\$HOME(/[A-Za-z0-9._/@+-]*)?|/[A-Za-z0-9._/@+-]*)$", var.state_dir))
+    error_message = "state_dir must be an absolute path, $HOME, or a path under $HOME/, made of letters, digits, and . _ / @ + - only."
   }
 }
 
@@ -116,8 +118,8 @@ variable "chrome_path" {
   default     = ""
 
   validation {
-    condition     = var.chrome_path == "" || can(regex("^(\\$HOME|/)[A-Za-z0-9._/@+-]*$", var.chrome_path))
-    error_message = "chrome_path must be empty, or an absolute path or one starting with $HOME, made of letters, digits, and . _ / @ + - only."
+    condition     = var.chrome_path == "" || can(regex("^(\\$HOME/[A-Za-z0-9._/@+-]*|/[A-Za-z0-9._/@+-]*)$", var.chrome_path))
+    error_message = "chrome_path must be empty, an absolute path, or a path under $HOME/, made of letters, digits, and . _ / @ + - only."
   }
 }
 
@@ -131,12 +133,23 @@ variable "state_file" {
   description = "Path the remote supervisor writes its lifecycle state to, read by the agent_relay_status agent metadata item."
   type        = string
   default     = "$HOME/.coder-modules/coder/agent-relay-devin/remote-state"
+
+  # Expanded into the supervisor's code, like workdir.
+  validation {
+    condition     = can(regex("^(\\$HOME/[A-Za-z0-9._/@+-]*|/[A-Za-z0-9._/@+-]*)$", var.state_file))
+    error_message = "state_file must be an absolute path or a path under $HOME/, made of letters, digits, and . _ / @ + - only."
+  }
 }
 
 variable "log_file" {
   description = "Path the detached remote's output is written to."
   type        = string
   default     = "$HOME/.coder-modules/coder/agent-relay-devin/logs/remote.log"
+
+  validation {
+    condition     = can(regex("^(\\$HOME/[A-Za-z0-9._/@+-]*|/[A-Za-z0-9._/@+-]*)$", var.log_file))
+    error_message = "log_file must be an absolute path or a path under $HOME/, made of letters, digits, and . _ / @ + - only."
+  }
 }
 
 variable "serving_log_pattern" {
@@ -400,6 +413,7 @@ locals {
     module_directory = local.module_directory
     remote_binary    = var.remote_binary
     static_base_url  = trimsuffix(var.static_base_url, "/")
+    download_proto   = startswith(var.static_base_url, "https://") ? "=https" : "=http"
   })
 
   start_script = templatefile("${path.module}/start.sh.tftpl", {

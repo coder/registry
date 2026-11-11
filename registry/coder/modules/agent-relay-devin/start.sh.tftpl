@@ -34,10 +34,20 @@ fi
 
 state_file="${state_file}"
 log_file="${log_file}"
-# The connect token is staged in this file between the start step and the
-# remote's launch. Always under the module directory, so an override of
-# state_file does not move it.
-token_file="${module_directory}/remote-token"
+# The connect token is staged in a fresh 0700 directory per start on
+# non-persistent storage (XDG_RUNTIME_DIR, else /tmp), never under $HOME,
+# which is often a volume that survives a workspace stop. The remote
+# deletes the token as soon as it has read it, the supervisor removes the
+# directory when it exits, and cleanup removes any a killed run left.
+runtime_prefix="agent-relay-devin-$UID."
+remove_runtime_dirs() {
+	local dir
+	for dir in "$${XDG_RUNTIME_DIR:-/tmp}/$runtime_prefix"* "/tmp/$runtime_prefix"*; do
+		if [ -d "$dir" ] && [ ! -L "$dir" ] && [ -O "$dir" ]; then
+			rm -rf "$dir" || echo "Cannot remove $dir" >&2
+		fi
+	done
+}
 # Runtime-materialized scripts live under the module directory's
 # scripts/ regardless of where state_file points, so an override of
 # state_file moves only the state.
@@ -61,7 +71,7 @@ if [ -z "$${AGENT_RELAY_DEVIN_TOKEN:-}" ]; then
 	# after the ephemeral credential was cleared. No remote can run either
 	# way; whatever a previous run recorded no longer applies.
 	# A skipped cleanup may have left the previous session's token.
-	rm -f "$token_file" "$token_file.tmp" || echo "Cannot remove previous Devin connect token" >&2
+	remove_runtime_dirs
 	write_state "idle"
 	echo "No Devin connect token in this build. Agent Relay delivers one only on the build it dispatches."
 	echo "Idling. If Agent Relay did not create this workspace, delete it."
@@ -130,16 +140,6 @@ if [ ! -x "$binary" ]; then
 fi
 %{ endif ~}
 
-# Written owner-only and renamed into place so the remote never reads a
-# partial token. The supervisor reads it into the remote's environment,
-# which Devin's spawn contract requires, and deletes it when the remote
-# exits.
-(
-	umask 077
-	printf '%s' "$AGENT_RELAY_DEVIN_TOKEN" >"$token_file.tmp"
-)
-mv "$token_file.tmp" "$token_file"
-
 mkdir -p "$workdir" "$state_dir/$session_id"
 
 # Devin writes a stamp in each directory and warns the user on resume if
@@ -154,6 +154,25 @@ if [ "$${AGENT_RELAY_DEVIN_SESSION_KIND:-}" = "resume" ]; then
 	done
 fi
 
+# Written owner-only before the supervisor starts, so the remote never
+# reads a partial token. The remote reads it into its own environment,
+# which Devin's spawn contract requires.
+runtime_base="$${XDG_RUNTIME_DIR:-/tmp}"
+if [ ! -d "$runtime_base" ] || [ ! -w "$runtime_base" ]; then
+	runtime_base="/tmp"
+fi
+if ! run_dir="$(mktemp -d "$runtime_base/$${runtime_prefix}XXXXXXXX")" ||
+	! chmod 700 "$run_dir" ||
+	! (
+		umask 077
+		printf '%s' "$AGENT_RELAY_DEVIN_TOKEN" >"$run_dir/token"
+	); then
+	[ -z "$${run_dir:-}" ] || rm -rf "$run_dir"
+	write_state "failed launch"
+	echo "Cannot stage the connect token under $runtime_base; not starting devin-remote." >&2
+	exit 1
+fi
+
 # The supervisor outlives this script: it owns the remote process and is
 # the only writer of terminal state. Written to disk rather than inlined so
 # setsid gets a clean argv. The session id and gateway URL are read from
@@ -164,10 +183,19 @@ fi
 # The remote runs with a clean environment: only the variables in
 # remote_env_names, plus Devin's own. Nothing else the agent or other
 # modules export reaches it or the commands Devin runs, including
-# CODER_AGENT_TOKEN and AGENT_RELAY_DEVIN_TOKEN. The connect token is
-# passed as DEVIN_OUTPOST_CONNECT_TOKEN because Devin's spawn contract
-# requires it; it is exported in the remote's own process rather than
-# passed to env(1), so it never appears on a command line.
+# CODER_AGENT_TOKEN and AGENT_RELAY_DEVIN_TOKEN. Just before the exec the
+# remote lists the environment a child really receives, which includes
+# entries bash cannot name, and drops anything else with env -u (names
+# only on argv). Without compgen, or without a usable env -0, it refuses
+# to start. The connect token is passed as DEVIN_OUTPOST_CONNECT_TOKEN
+# because Devin's spawn contract requires it; it is exported in the
+# remote's own process, so its value never appears on a command line.
+# The supervisor itself is started without AGENT_RELAY_DEVIN_TOKEN in its
+# environment, so only the remote's /proc environ holds the token.
+#
+# A remote that gives up before exec (identity, workdir, token, or
+# environment) flags it in the runtime directory, and the supervisor
+# reports failed launch rather than done.
 #
 # devin-remote exits 0 when its session suspends or terminates. That is
 # the end of the session, never a crash, and it is not restarted.
@@ -185,9 +213,11 @@ fi
 # A watchdog gives the remote ${connect_timeout} seconds to log
 # serving_log_pattern. Past that, it signals the supervisor, which records
 # failed connect-timeout, stops the remote, and does not overwrite that
-# state when the remote exits.
+# state when the remote exits. The log is truncated before the remote is
+# forked, so the watchdog never sees a previous run's connected line.
 #
-# The cleanup id and the binary reach the supervisor only as arguments.
+# The cleanup id, the binary, and the runtime directory reach the
+# supervisor only as arguments.
 # The script file holds nothing specific to this start, so a late start
 # from before a newer cleanup that runs a newer start's script still checks
 # its own, stale id. The file is replaced by rename, so a running
@@ -203,6 +233,12 @@ cleanup_id="\$${1:-}"
 # The verified devin-remote binary to run.
 binary="\$${2:-}"
 [ -n "\$binary" ] || exit 1
+# This start's 0700 runtime directory, holding the staged token until the
+# remote reads it, and the launch-failed flag.
+run_dir="\$${3:-}"
+[ -n "\$run_dir" ] || exit 1
+token_file="\$run_dir/token"
+launch_failed_flag="\$run_dir/launch-failed"
 
 boot_id="\$(cat /proc/sys/kernel/random/boot_id)" || exit 1
 
@@ -256,6 +292,9 @@ connected() {
 
 record="$supervisors/\$\$.\$(starttime_of \$\$)"
 on_exit() {
+	# The claim's token is no use to anyone once the remote is gone; this
+	# start's runtime directory is never shared, so it is always removed.
+	rm -rf "\$run_dir"
 	rm -f "$supervisors/.\$\$.tmp" "\$record"
 }
 trap on_exit EXIT
@@ -290,7 +329,6 @@ stop() {
 		wait "\$remote" 2>/dev/null
 		[ -z "\$start" ] || rm -f "$remotes/\$remote.\$start"
 	fi
-	! current || rm -f "$token_file"
 	exit 0
 }
 trap stop TERM
@@ -322,14 +360,28 @@ write_state() {
 unset AGENT_RELAY_DEVIN_TOKEN
 # The remote publishes itself from the subshell, clears its environment,
 # then execs devin-remote, which keeps the pid. Keep remote_env_names in
-# sync with the README.
+# sync with the README. The log is truncated here, before the fork, so the
+# watchdog cannot match a previous run's connected line.
+: >"$log_file"
 (
-	publish "\$BASHPID" "$remotes" || exit 1
-	cd "$workdir" || exit 1
-	token="\$(cat "$token_file")" || exit 1
+	# Gives up before devin-remote runs. The flag makes the supervisor
+	# report failed launch instead of done.
+	launch_failed() {
+		echo "Not starting devin-remote: \$1" >&2
+		: >"\$launch_failed_flag"
+		exit 1
+	}
+	publish "\$BASHPID" "$remotes" || launch_failed "cannot record its identity, or a newer start took over"
+	cd "$workdir" || launch_failed "cannot enter $workdir"
+	token="\$(cat "\$token_file")" || launch_failed "cannot read the staged connect token"
+	rm -f "\$token_file"
+	# The environment can only be cleared with compgen, which a minimal
+	# bash may lack. Without it nothing would be unset.
+	[ "\$(type -t compgen)" = "builtin" ] || launch_failed "this bash has no compgen builtin, so the environment cannot be cleared"
 	session_id="\$AGENT_RELAY_SESSION_ID"
 	gateway_url="\$AGENT_RELAY_DEVIN_GATEWAY_URL"
 	remote_env_names="PATH HOME USER LOGNAME TMPDIR LANG TZ DISPLAY WAYLAND_DISPLAY XAUTHORITY"
+	devin_env_names="DEVIN_OUTPOST_GATEWAY_URL DEVIN_OUTPOST_CONNECT_TOKEN DEVIN_OUTPOST_SESSION_ID DEVIN_REMOTE_STATE_DIR%{ if chrome_path != "" } DEVIN_CHROME_PATH%{ endif }%{ if desktop } DEVIN_OUTPOST_DESKTOP%{ endif }"
 	kept=()
 	for name in \$remote_env_names; do
 		[ -z "\$${!name+set}" ] || kept+=("\$name=\$${!name}")
@@ -356,18 +408,41 @@ unset AGENT_RELAY_DEVIN_TOKEN
 	export DEVIN_OUTPOST_DESKTOP=true
 %{ endif ~}
 	unset token
-	# A readonly variable cannot be unset. Refuse to run rather than leak it.
-	for name in \$(compgen -e); do
-		case " \$remote_env_names " in *" \$name "*) continue ;; esac
-		case "\$name" in DEVIN_OUTPOST_GATEWAY_URL | DEVIN_OUTPOST_CONNECT_TOKEN | DEVIN_OUTPOST_SESSION_ID | DEVIN_REMOTE_STATE_DIR | DEVIN_CHROME_PATH | DEVIN_OUTPOST_DESKTOP) continue ;; esac
-		echo "Cannot clear \$name from devin-remote's environment; not starting it." >&2
-		exit 1
+	# compgen only sees what bash holds as variables. The environment a
+	# child receives can also carry entries bash cannot name (bad-name=x,
+	# 1X=y, BASH_FUNC_f()=) and readonly variables, so list it for real.
+	# _ is the command path bash adds for env itself, not for the exec.
+	allowed() {
+		local n
+		for n in \$remote_env_names \$devin_env_names _; do
+			[ "\$1" != "\$n" ] || return 0
+		done
+		return 1
+	}
+	shopt -s lastpipe
+	strays=()
+	env -0 | while IFS= read -r -d '' entry; do
+		name="\$${entry%%=*}"
+		[ -n "\$name" ] || launch_failed "its environment has an entry with no name"
+		allowed "\$name" || strays+=("\$name")
 	done
-	if [ -n "\$(declare -Fx)" ]; then
-		echo "Cannot clear exported functions from devin-remote's environment; not starting it." >&2
-		exit 1
+	[ "\$${PIPESTATUS[0]}" -eq 0 ] || launch_failed "env -0 cannot list its environment"
+	unset entry
+	# A failed exec reports failed launch rather than exiting 126 or 127.
+	shopt -s execfail
+	if [ "\$${#strays[@]}" -eq 0 ]; then
+		exec "\$binary" serve
+	else
+		# env -u takes names only, never values, so nothing secret reaches
+		# a command line.
+		echo "Dropping \$${#strays[@]} environment entries bash cannot clear." >&2
+		drop=()
+		for name in "\$${strays[@]}"; do
+			drop+=(-u "\$name")
+		done
+		exec env "\$${drop[@]}" "\$binary" serve
 	fi
-	exec "\$binary" serve
+	launch_failed "cannot run \$binary"
 ) >"$log_file" 2>&1 &
 remote_pid=\$!
 remote_start="\$(starttime_of "\$remote_pid" || true)"
@@ -413,10 +488,9 @@ while :; do
 done
 stop_watchdog
 [ -z "\$remote_start" ] || rm -f "$remotes/\$remote_pid.\$remote_start"
-# The claim's token is no use to anyone once the remote exits; do not
-# leave it on disk.
-! current || rm -f "$token_file"
-if [ "\$timed_out" -eq 0 ]; then
+if [ -e "\$launch_failed_flag" ]; then
+	write_state "failed launch"
+elif [ "\$timed_out" -eq 0 ]; then
 	write_state "done \$code"
 fi
 SUPERVISOR
@@ -424,7 +498,10 @@ chmod +x "$supervisor.$$.tmp"
 mv "$supervisor.$$.tmp" "$supervisor"
 
 echo "Starting Devin remote (detached)..."
-setsid nohup "$supervisor" "$cleanup_id" "$binary" >/dev/null 2>&1 </dev/null &
+# The supervisor starts without the connect token in its environment, so
+# its /proc environ does not hold it for the life of the session. Only the
+# variable's name is on the command line.
+env -u AGENT_RELAY_DEVIN_TOKEN setsid nohup "$supervisor" "$cleanup_id" "$binary" "$run_dir" >/dev/null 2>&1 </dev/null &
 
 # Give the supervisor a moment to record state, so a workspace that
 # fails immediately is visible as such rather than as pending, and so

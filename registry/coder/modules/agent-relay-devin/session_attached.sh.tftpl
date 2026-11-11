@@ -27,9 +27,7 @@ remote_alive() {
 
 state=""
 detail=""
-if [ -f "$state_file" ]; then
-	read -r state detail <"$state_file" || true
-fi
+{ read -r state detail <"$state_file"; } 2>/dev/null || true
 if [ "$state" = "working" ] && remote_alive "$detail"; then
 	echo "attached"
 else

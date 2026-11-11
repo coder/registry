@@ -40,9 +40,12 @@ exit 0
 static_base_url="${static_base_url}"
 cache_dir="$HOME/.devin/worker/cache"
 
+# curl may only use, and follow redirects to, the base URL's own scheme:
+# https unless static_base_url is a loopback http mirror. wget has no
+# equivalent, so it is only the fallback.
 download() {
 	if command -v curl >/dev/null 2>&1; then
-		curl --fail --location --silent --show-error --output "$2" "$1"
+		curl --fail --location --silent --show-error --proto '${download_proto}' --proto-redir '${download_proto}' --output "$2" "$1"
 	elif command -v wget >/dev/null 2>&1; then
 		wget --quiet --output-document="$2" "$1"
 	else

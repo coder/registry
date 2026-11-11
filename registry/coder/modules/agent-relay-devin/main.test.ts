@@ -48,7 +48,11 @@ afterEach(async () => {
 // coder-utils pins the layout; the container runs as root.
 const MODULE_DIR = "/root/.coder-modules/coder/agent-relay-devin";
 const STATE_FILE = `${MODULE_DIR}/remote-state`;
-const TOKEN_FILE = `${MODULE_DIR}/remote-token`;
+// Where unreleased builds of the module staged the token, under $HOME.
+const LEGACY_TOKEN_FILE = `${MODULE_DIR}/remote-token`;
+// Each start stages the token in its own runtime directory, here under
+// /tmp because the container has no XDG_RUNTIME_DIR. Root's uid is 0.
+const RUNTIME_GLOB = "/tmp/agent-relay-devin-0.*";
 const LOG_FILE = `${MODULE_DIR}/logs/remote.log`;
 const SUPERVISORS_DIR = `${MODULE_DIR}/supervisors`;
 const REMOTES_DIR = `${MODULE_DIR}/remotes`;
@@ -213,6 +217,31 @@ const readState = async (id: string) =>
 const exists = async (id: string, path: string) =>
   (await execContainer(id, ["test", "-e", path])).exitCode === 0;
 
+// The runtime directories a start staged its token in and has not removed.
+const runtimeDirs = async (id: string, glob = RUNTIME_GLOB) => {
+  const out = await execContainer(id, [
+    "sh",
+    "-c",
+    `for d in ${glob}; do [ -e "$d" ] && echo "$d"; done; true`,
+  ]);
+  return out.stdout.split("\n").filter((l) => l !== "");
+};
+
+// Every process whose /proc environ holds value, as [pid, ppid] pairs.
+const processesHolding = async (id: string, value: string) => {
+  const out = await execContainer(id, [
+    "bash",
+    "-c",
+    'v=$1; for p in /proc/[0-9]*; do grep -qaF -- "$v" "$p/environ" 2>/dev/null || continue; s=$(cat "$p/stat" 2>/dev/null) || continue; s=${s##*) }; set -- $s; echo "${p#/proc/} $2"; done',
+    "bash",
+    value,
+  ]);
+  return out.stdout
+    .split("\n")
+    .filter((l) => l !== "")
+    .map((l) => l.split(" "));
+};
+
 const statusOf = async (id: string, script: string) => {
   const result = await execContainer(id, ["bash", "-c", script]);
   expect(result.exitCode, result.stderr).toBe(0);
@@ -375,7 +404,15 @@ describe("agent-relay-devin", () => {
     const { id, scripts, statusScript, attachedScript } = await setup();
     await execContainer(id, ["mkdir", "-p", MODULE_DIR]);
     await writeFileContainer(id, STATE_FILE, "done 3\n", { user: "root" });
-    await writeFileContainer(id, TOKEN_FILE, "stale-token", { user: "root" });
+    await writeFileContainer(id, LEGACY_TOKEN_FILE, "stale-token", {
+      user: "root",
+    });
+    // A runtime directory a killed run left behind.
+    await execContainer(id, [
+      "sh",
+      "-c",
+      "mkdir -m 700 /tmp/agent-relay-devin-0.stale && printf stale-token >/tmp/agent-relay-devin-0.stale/token",
+    ]);
     // No AGENT_RELAY_DEVIN_TOKEN: a workspace a human created by hand, or
     // a restart after the ephemeral secret was cleared.
     const { install, start } = await runScripts(
@@ -389,9 +426,22 @@ describe("agent-relay-devin", () => {
     expect(await readState(id)).toBe("idle");
     expect(await statusOf(id, statusScript)).toBe("idle");
     expect(await statusOf(id, attachedScript)).toBe("stopped");
-    expect(await exists(id, TOKEN_FILE)).toBe(false);
+    expect(await runtimeDirs(id)).toEqual([]);
+    expect(await exists(id, LEGACY_TOKEN_FILE)).toBe(false);
     expect(requests).toEqual([]);
     expect(await remoteRuns(id)).toBe(0);
+
+    // Without the pre-install cleanup, the start step itself removes a
+    // stale runtime directory before it idles.
+    await execContainer(id, [
+      "sh",
+      "-c",
+      "mkdir -m 700 /tmp/agent-relay-devin-0.stale && printf stale-token >/tmp/agent-relay-devin-0.stale/token",
+    ]);
+    const idle = await execContainer(id, ["bash", "-c", scripts.start]);
+    expect(idle.exitCode).toBe(0);
+    expect(await runtimeDirs(id)).toEqual([]);
+    expect(await readState(id)).toBe("idle");
   });
 
   it("starts the remote from workdir with a clean environment", async () => {
@@ -457,11 +507,8 @@ describe("agent-relay-devin", () => {
     ]);
     expect(cmdline.stdout).toBe(`bash ${cachedBinary()} serve `);
 
-    // The token is staged owner-only and never written into the
-    // supervisor, onto a command line, or into the logs.
-    expect(await readFileContainer(id, TOKEN_FILE)).toBe(TOKEN);
-    const mode = await execContainer(id, ["stat", "-c", "%a", TOKEN_FILE]);
-    expect(mode.stdout.trim()).toBe("600");
+    // The token never reaches the supervisor's file, a command line, a
+    // log, the state file, or anything under $HOME.
     const supervisor = await readFileContainer(
       id,
       `${MODULE_DIR}/scripts/supervise.sh`,
@@ -473,12 +520,139 @@ describe("agent-relay-devin", () => {
     const leaked = await execContainer(id, [
       "sh",
       "-c",
-      `for p in /proc/[0-9]*; do tr '\\0' ' ' <"$p/cmdline" 2>/dev/null; echo; done; cat ${MODULE_DIR}/logs/*.log`,
+      `for p in /proc/[0-9]*; do tr '\\0' ' ' <"$p/cmdline" 2>/dev/null; echo; done; cat ${MODULE_DIR}/logs/*.log ${STATE_FILE}`,
     ]);
     expect(leaked.stdout).not.toContain(TOKEN);
+    const onDisk = await execContainer(id, ["grep", "-rlF", TOKEN, "/root"]);
+    expect(onDisk.stdout).toBe("");
+    expect(onDisk.exitCode).toBe(1);
+
+    // Only the remote's environ, and its children's, holds the token. The
+    // supervisor and the watchdog were started without it.
+    const { supervisorPid } = await liveIdentity(id);
+    const holders = await processesHolding(id, TOKEN);
+    expect(holders.map(([p]) => p)).toContain(pid);
+    expect(holders.map(([p]) => p)).not.toContain(supervisorPid);
+    for (const [holder, parent] of holders) {
+      expect(holder === pid || parent === pid, `pid ${holder}`).toBe(true);
+    }
+
+    // The remote deleted the staged token once it had read it. The runtime
+    // directory stays, empty, until the supervisor exits.
+    const [runDir] = await runtimeDirs(id);
+    expect(runDir).toBeTruthy();
+    const listing = await execContainer(id, ["ls", "-A", runDir]);
+    expect(listing.stdout.trim()).toBe("");
 
     expect(await statusOf(id, statusScript)).toBe("working");
     expect(await statusOf(id, attachedScript)).toBe("attached");
+  });
+
+  it("stages the token owner-only under XDG_RUNTIME_DIR and removes it", async () => {
+    const { id, scripts } = await setup();
+    await execContainer(id, ["mkdir", "-m", "700", "-p", "/tmp/xdg-run"]);
+    // Records the modes of the runtime directory and the token at the
+    // moment the remote reads it.
+    await stubBinary(
+      id,
+      "/usr/local/bin/cat",
+      [
+        'for a in "$@"; do last=$a; done',
+        'case "${last:-}" in */agent-relay-devin-0.*/token) stat -c "%n %a" "${last%/token}" "$last" >/tmp/token-modes ;; esac',
+        'exec /bin/cat "$@"',
+      ].join("\n"),
+    );
+    const { start } = await runDispatched(id, scripts, [
+      "XDG_RUNTIME_DIR=/tmp/xdg-run",
+    ]);
+    expect(start.exitCode, start.stdout).toBe(0);
+    const pid = await workingPid(id);
+    await waitFor(
+      async () => exists(id, "/tmp/token-modes"),
+      "the remote to read the token",
+    );
+    const modes = (await readFileContainer(id, "/tmp/token-modes"))
+      .trim()
+      .split("\n");
+    expect(modes).toHaveLength(2);
+    expect(modes[0]).toMatch(/^\/tmp\/xdg-run\/agent-relay-devin-0\.\S+ 700$/);
+    expect(modes[1]).toMatch(/\/token 600$/);
+    expect(await runtimeDirs(id)).toEqual([]);
+    const [runDir] = await runtimeDirs(
+      id,
+      "/tmp/xdg-run/agent-relay-devin-0.*",
+    );
+    expect(await exists(id, `${runDir}/token`)).toBe(false);
+    expect((await environOf(id, pid)).XDG_RUNTIME_DIR).toBeUndefined();
+
+    // The supervisor removes the directory when the remote is gone.
+    const stopped = await execContainer(id, ["bash", "-c", scripts.stop]);
+    expect(stopped.exitCode).toBe(0);
+    expect(await runtimeDirs(id, "/tmp/xdg-run/agent-relay-devin-0.*")).toEqual(
+      [],
+    );
+  });
+
+  it("drops environment entries bash cannot name before the remote runs", async () => {
+    const { id, scripts } = await setup();
+    const { start } = await runDispatched(id, scripts, [
+      "bad-name=x",
+      "1X=y",
+      "BASH_FUNC_old()=() { echo leaked; }",
+    ]);
+    expect(start.exitCode, start.stdout).toBe(0);
+    const pid = await workingPid(id);
+    await waitFor(async () => (await remoteRuns(id)) === 1, "the stub to run");
+    // They did reach the supervisor, which is what makes this case matter.
+    const { supervisorPid } = await liveIdentity(id);
+    expect(Object.keys(await environOf(id, supervisorPid))).toContain(
+      "bad-name",
+    );
+    const env = await environOf(id, pid);
+    for (const name of ["bad-name", "1X", "BASH_FUNC_old()"]) {
+      expect(env[name], name).toBeUndefined();
+    }
+    for (const name of Object.keys(env)) {
+      expect(
+        ALLOWED_ENV.includes(name) || name.startsWith("DEVIN_"),
+        `${name} must not reach the remote`,
+      ).toBe(true);
+    }
+    expect(await readFileContainer(id, LOG_FILE)).toContain(
+      "Dropping 3 environment entries bash cannot clear.",
+    );
+    // Names only on argv: env(1) replaced itself with the remote.
+    const cmdline = await execContainer(id, [
+      "sh",
+      "-c",
+      `tr '\\0' ' ' </proc/${pid}/cmdline`,
+    ]);
+    expect(cmdline.stdout).toBe(`bash ${cachedBinary()} serve `);
+  });
+
+  it("reports failed launch and runs nothing when bash has no compgen", async () => {
+    const { id, scripts, statusScript } = await setup();
+    // BASH_ENV runs in every non-interactive bash, the supervisor included.
+    await writeFileContainer(id, "/tmp/no-compgen.sh", "enable -n compgen\n", {
+      user: "root",
+    });
+    const { start } = await runDispatched(id, scripts, [
+      "BASH_ENV=/tmp/no-compgen.sh",
+      "CODER_AGENT_TOKEN=agent-secret",
+    ]);
+    expect(start.exitCode).toBe(0);
+    expect(await waitForState(id, /^(failed|done) /)).toBe("failed launch");
+    expect(await statusOf(id, statusScript)).toBe("failed launch");
+    expect(await remoteRuns(id)).toBe(0);
+    expect(await readFileContainer(id, LOG_FILE)).toContain(
+      "this bash has no compgen builtin",
+    );
+    await waitFor(
+      async () => (await allRecords(id)).length === 0,
+      "the supervisor to exit",
+    );
+    expect(await runtimeDirs(id)).toEqual([]);
+    expect(await processesHolding(id, "agent-secret")).toEqual([]);
   });
 
   it("passes chrome_path and desktop to the remote when set", async () => {
@@ -566,7 +740,7 @@ describe("agent-relay-devin", () => {
     expect(await readState(id)).toBe("failed checksum");
     expect(await statusOf(id, statusScript)).toBe("failed checksum");
     expect(await exists(id, cachedBinary())).toBe(false);
-    expect(await exists(id, TOKEN_FILE)).toBe(false);
+    expect(await runtimeDirs(id)).toEqual([]);
     expect(await remoteRuns(id)).toBe(0);
   });
 
@@ -636,7 +810,7 @@ describe("agent-relay-devin", () => {
     const { start } = await runDispatched(id, scripts);
     expect(start.exitCode).toBe(1);
     expect(await readState(id)).toBe("failed remote-binary-missing");
-    expect(await exists(id, TOKEN_FILE)).toBe(false);
+    expect(await runtimeDirs(id)).toEqual([]);
   });
 
   it("reports failed invalid-session for an unsafe session id or no gateway", async () => {
@@ -650,7 +824,7 @@ describe("agent-relay-devin", () => {
       const { start } = await runDispatched(id, scripts, env);
       expect(start.exitCode, env[0]).toBe(1);
       expect(await readState(id), env[0]).toBe("failed invalid-session");
-      expect(await exists(id, TOKEN_FILE)).toBe(false);
+      expect(await runtimeDirs(id)).toEqual([]);
     }
     expect(await exists(id, "/root/.devin/worker/escape")).toBe(false);
     expect(await remoteRuns(id)).toBe(0);
@@ -708,7 +882,7 @@ describe("agent-relay-devin", () => {
     expect(await readState(id)).toBe("failed connect-timeout");
     expect(await statusOf(id, statusScript)).toBe("failed connect-timeout");
     expect(await statusOf(id, attachedScript)).toBe("stopped");
-    expect(await exists(id, TOKEN_FILE)).toBe(false);
+    expect(await runtimeDirs(id)).toEqual([]);
     expect(await remoteRuns(id)).toBe(1);
   });
 
@@ -783,7 +957,7 @@ describe("agent-relay-devin", () => {
     expect(await readState(id)).toBe("done 0");
     expect(await remoteRuns(id)).toBe(1);
     expect(await remoteCount(id)).toBe(0);
-    expect(await exists(id, TOKEN_FILE)).toBe(false);
+    expect(await runtimeDirs(id)).toEqual([]);
     expect(await statusOf(id, statusScript)).toBe("done 0");
     expect(await statusOf(id, attachedScript)).toBe("stopped");
   });
@@ -799,7 +973,7 @@ describe("agent-relay-devin", () => {
       async () => (await allRecords(id)).length === 0,
       "identity record removal",
     );
-    expect(await exists(id, TOKEN_FILE)).toBe(false);
+    expect(await runtimeDirs(id)).toEqual([]);
   });
 
   it("stops the remote on workspace stop without publishing a marker", async () => {
@@ -817,7 +991,7 @@ describe("agent-relay-devin", () => {
     expect(await processAlive(id, supervisorPid)).toBe(false);
     expect(await processAlive(id, remotePid)).toBe(false);
     expect(await exists(id, STATE_FILE)).toBe(false);
-    expect(await exists(id, TOKEN_FILE)).toBe(false);
+    expect(await runtimeDirs(id)).toEqual([]);
     expect(await exists(id, CLEANUP_MARKER)).toBe(false);
     expect(await allRecords(id)).toEqual([]);
     expect(await statusOf(id, attachedScript)).toBe("stopped");
@@ -843,7 +1017,7 @@ describe("agent-relay-devin", () => {
     );
     expect(await remoteCount(id)).toBe(0);
     expect(await allRecords(id)).toEqual([]);
-    expect(await exists(id, TOKEN_FILE)).toBe(false);
+    expect(await runtimeDirs(id)).toEqual([]);
     expect(await readState(id)).toBe(state);
   });
 
@@ -884,7 +1058,10 @@ describe("agent-relay-devin", () => {
       `${MODULE_DIR}/scripts/supervise.sh`,
     );
     expect(supervisor).not.toContain(firstCleanupId);
-    for (const args of [[firstCleanupId, cachedBinary()], []]) {
+    for (const args of [
+      [firstCleanupId, cachedBinary(), "/tmp/agent-relay-devin-0.late"],
+      [],
+    ]) {
       const stale = await execContainer(id, [
         "env",
         ...DISPATCH_ENV,
@@ -916,5 +1093,32 @@ describe("agent-relay-devin", () => {
     }
     await execContainer(id, ["rm", "-f", STATE_FILE]);
     expect(await statusOf(id, statusScript)).toBe("pending");
+    expect(await statusOf(id, attachedScript)).toBe("stopped");
+    // An empty file, as a vanished or truncated one reads, is pending too.
+    await writeFileContainer(id, STATE_FILE, "", { user: "root" });
+    expect(await statusOf(id, statusScript)).toBe("pending");
+  });
+
+  it("ignores a previous run's connected line on a resume", async () => {
+    const { id, scripts, statusScript } = await setup({ connect_timeout: "2" });
+    // The log survived the stop; its last line is the previous run's
+    // connected line.
+    await execContainer(id, ["mkdir", "-p", `${MODULE_DIR}/logs`]);
+    await execContainer(id, [
+      "sh",
+      "-c",
+      `printf '${CONNECTED_LINE}\\n' >${LOG_FILE}`,
+    ]);
+    const { start } = await runDispatched(id, scripts, [
+      "AGENT_RELAY_DEVIN_SESSION_KIND=resume",
+    ]);
+    expect(start.exitCode).toBe(0);
+    const pid = await workingPid(id);
+    expect(await statusOf(id, statusScript)).toBe("working");
+    expect(await readFileContainer(id, LOG_FILE)).not.toContain("endpoint");
+    expect(await waitForState(id, /^failed /, 8000)).toBe(
+      "failed connect-timeout",
+    );
+    await waitFor(async () => !(await processAlive(id, pid)), "remote exit");
   });
 });

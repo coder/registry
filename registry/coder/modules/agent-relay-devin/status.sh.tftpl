@@ -40,12 +40,15 @@ connected() {
 	[ -f "$log_file" ] && sed "s/$esc\[[0-9;]*[A-Za-z]//g" "$log_file" 2>/dev/null | grep -qF -- "$serving_log_pattern"
 }
 
-if [ ! -f "$state_file" ]; then
+# The state file can vanish between any check and the read, when a
+# cleanup runs, so a missing or empty file reads as pending.
+state=""
+detail=""
+{ read -r state detail <"$state_file"; } 2>/dev/null || true
+if [ -z "$state" ]; then
 	echo "pending"
 	exit 0
 fi
-
-read -r state detail <"$state_file" || true
 
 case "$state" in
 working)

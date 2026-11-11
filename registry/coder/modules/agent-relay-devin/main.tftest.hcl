@@ -128,23 +128,25 @@ run "remote_wiring" {
   }
 
   assert {
-    condition     = strcontains(local.start_script, "elif [ -d \"${local.module_directory}/started/$cleanup_id\" ]") && strcontains(local.start_script, "new_generation") && strcontains(local.start_script, "rm -f \"$token_file\" \"$token_file.tmp\"")
-    error_message = "start must rotate a claimed generation and remove a stale token when idling"
+    condition     = strcontains(local.start_script, "elif [ -d \"${local.module_directory}/started/$cleanup_id\" ]") && strcontains(local.start_script, "new_generation") && strcontains(local.start_script, "\tremove_runtime_dirs\n\twrite_state \"idle\"") && strcontains(local.cleanup_script, "remove_runtime_dirs") && strcontains(local.stop_script, "remove_runtime_dirs")
+    error_message = "start must rotate a claimed generation and remove stale staged tokens when idling, as cleanup and stop do"
   }
 
   # The cleanup id travels as an argument, so a late start that runs a
   # newer start's supervisor script still checks its own id. The binary
-  # path, which carries the session's SHA, is an argument too.
+  # path, which carries the session's SHA, and the runtime directory are
+  # arguments too. The supervisor starts without the token in its
+  # environment; only the variable's name is on the command line.
   assert {
-    condition     = strcontains(local.start_script, "setsid nohup \"$supervisor\" \"$cleanup_id\" \"$binary\"") && strcontains(local.start_script, "cleanup_id=\"\\$${1:-}\"") && strcontains(local.start_script, "binary=\"\\$${2:-}\"") && strcontains(local.start_script, "= \"\\$cleanup_id\" ]") && strcontains(local.start_script, "mv \"$supervisor.$$.tmp\" \"$supervisor\"")
-    error_message = "the supervisor must take the cleanup id and binary as arguments and be replaced by rename"
+    condition     = strcontains(local.start_script, "env -u AGENT_RELAY_DEVIN_TOKEN setsid nohup \"$supervisor\" \"$cleanup_id\" \"$binary\" \"$run_dir\"") && strcontains(local.start_script, "cleanup_id=\"\\$${1:-}\"") && strcontains(local.start_script, "binary=\"\\$${2:-}\"") && strcontains(local.start_script, "run_dir=\"\\$${3:-}\"") && strcontains(local.start_script, "= \"\\$cleanup_id\" ]") && strcontains(local.start_script, "mv \"$supervisor.$$.tmp\" \"$supervisor\"")
+    error_message = "the supervisor must take the cleanup id, binary, and runtime directory as arguments, start without the token, and be replaced by rename"
   }
 
-  # A supervisor from an older run must not overwrite a newer run's state
-  # or delete its token.
+  # A supervisor from an older run must not overwrite a newer run's state.
+  # Its runtime directory is its own, so it always removes that on exit.
   assert {
-    condition     = strcontains(local.start_script, "write_state() {\n\tcurrent || return 0") && length(regexall("! current \\|\\| rm -f \"\\$token_file\"", local.start_script)) == 2
-    error_message = "every supervisor state write and token removal must check the run is still current"
+    condition     = strcontains(local.start_script, "write_state() {\n\tcurrent || return 0") && strcontains(local.start_script, "\t# start's runtime directory is never shared, so it is always removed.\n\trm -rf \"\\$run_dir\"\n") && !strcontains(local.start_script, "remote-token")
+    error_message = "every supervisor state write must check the run is still current, and the runtime directory must go on exit"
   }
 
   assert {
@@ -155,7 +157,7 @@ run "remote_wiring" {
   # The remote records itself before it execs devin-remote, so it stays
   # tracked if its supervisor is SIGKILLed.
   assert {
-    condition     = strcontains(local.start_script, "publish \"\\$BASHPID\" \"$remotes\" || exit 1\n\tcd \"$workdir\" || exit 1") && strcontains(local.start_script, "exec \"\\$binary\" serve\n) >\"$log_file\" 2>&1 &")
+    condition     = strcontains(local.start_script, "publish \"\\$BASHPID\" \"$remotes\" || launch_failed \"cannot record its identity, or a newer start took over\"\n\tcd \"$workdir\" || launch_failed") && strcontains(local.start_script, "\t\texec \"\\$binary\" serve\n") && strcontains(local.start_script, "\tlaunch_failed \"cannot run \\$binary\"\n) >\"$log_file\" 2>&1 &")
     error_message = "the remote must publish its own identity, then exec devin-remote serve from the workdir"
   }
 
@@ -199,7 +201,7 @@ run "remote_wiring" {
 
   assert {
     condition = alltrue([
-      for reason in ["invalid-session", "remote-binary-missing", "connect-timeout"] : strcontains(local.start_script, "failed ${reason}")
+      for reason in ["invalid-session", "remote-binary-missing", "connect-timeout", "launch"] : strcontains(local.start_script, "failed ${reason}")
       ]) && alltrue([
       for reason in ["download", "checksum", "unsupported-arch"] : strcontains(local.install_script, "record \"failed ${reason}\"")
     ]) && strcontains(local.start_script, "write_state \"failed $${binary:-download}\"")
@@ -287,11 +289,35 @@ run "clean_remote_environment" {
     error_message = "the agent token must never be passed, and Chrome and desktop must be opt in"
   }
 
-  # The token is read from the owner-only file inside the remote's own
-  # process and never appears on a command line.
+  # The token is staged in a per-start runtime directory, deleted as soon
+  # as the remote reads it, and never appears on a command line.
   assert {
-    condition     = strcontains(local.start_script, "token=\"\\$(cat \"$token_file\")\"") && strcontains(local.start_script, "umask 077") && !can(regex("env -i", local.start_script))
-    error_message = "the connect token must reach the remote from its 0600 file, never through a command line"
+    condition     = strcontains(local.start_script, "token=\"\\$(cat \"\\$token_file\")\"") && strcontains(local.start_script, "rm -f \"\\$token_file\"") && strcontains(local.start_script, "umask 077") && strcontains(local.start_script, "run_dir=\"$(mktemp -d \"$runtime_base/$${runtime_prefix}XXXXXXXX\")\"") && strcontains(local.start_script, "runtime_base=\"$${XDG_RUNTIME_DIR:-/tmp}\"") && !can(regex("env -i", local.start_script))
+    error_message = "the connect token must be staged in a per-start runtime directory, deleted once read, and never passed on a command line"
+  }
+
+  # compgen alone cannot see entries bash cannot name, and a bash without
+  # it would clear nothing, so the real environment is checked before exec.
+  assert {
+    condition     = strcontains(local.start_script, "[ \"\\$(type -t compgen)\" = \"builtin\" ] || launch_failed") && strcontains(local.start_script, "env -0 | while IFS= read -r -d '' entry; do") && strcontains(local.start_script, "[ \"\\$${PIPESTATUS[0]}\" -eq 0 ] || launch_failed") && strcontains(local.start_script, "exec env \"\\$${drop[@]}\" \"\\$binary\" serve") && strcontains(local.start_script, "devin_env_names=\"DEVIN_OUTPOST_GATEWAY_URL DEVIN_OUTPOST_CONNECT_TOKEN DEVIN_OUTPOST_SESSION_ID DEVIN_REMOTE_STATE_DIR\"")
+    error_message = "the remote must fail closed without compgen and check the environment a child really receives"
+  }
+
+  # A remote that gives up before exec is a launch failure, not an exit.
+  assert {
+    condition     = strcontains(local.start_script, "if [ -e \"\\$launch_failed_flag\" ]; then\n\twrite_state \"failed launch\"")
+    error_message = "a launch that never reaches exec must report failed launch"
+  }
+
+  # A resume must not match the previous run's connected line.
+  assert {
+    condition     = strcontains(local.start_script, ": >\"$log_file\"\n(")
+    error_message = "the log must be truncated before the remote is forked"
+  }
+
+  assert {
+    condition     = strcontains(local.install_script, "--proto '=https' --proto-redir '=https'")
+    error_message = "curl must be restricted to https for the default static host"
   }
 
   # A rejected token makes devin-remote retry forever, so the watchdog is
@@ -486,9 +512,86 @@ run "static_base_url_allows_loopback" {
   }
 
   assert {
-    condition     = strcontains(local.install_script, "static_base_url=\"http://127.0.0.1:8080/remote\"")
-    error_message = "a loopback mirror must be accepted, without its trailing slash"
+    condition     = strcontains(local.install_script, "static_base_url=\"http://127.0.0.1:8080/remote\"") && strcontains(local.install_script, "--proto '=http' --proto-redir '=http'")
+    error_message = "a loopback mirror must be accepted, without its trailing slash, over its own scheme"
   }
+}
+
+run "paths_accept_home" {
+  command = plan
+
+  variables {
+    workdir     = "$HOME"
+    state_dir   = "$HOME/state"
+    chrome_path = "$HOME/chrome/chrome"
+    state_file  = "$HOME/relay/state"
+    log_file    = "/var/log/devin.log"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "workdir=\"$HOME\"") && strcontains(local.start_script, "state_file=\"$HOME/relay/state\"")
+    error_message = "$HOME itself and paths under $HOME/ must be accepted"
+  }
+}
+
+run "workdir_rejects_home_prefix" {
+  command = plan
+
+  variables {
+    workdir = "$HOMEfoo"
+  }
+
+  expect_failures = [var.workdir]
+}
+
+run "state_dir_rejects_home_prefix" {
+  command = plan
+
+  variables {
+    state_dir = "$HOMEx/sessions"
+  }
+
+  expect_failures = [var.state_dir]
+}
+
+run "chrome_path_rejects_home_prefix" {
+  command = plan
+
+  variables {
+    chrome_path = "$HOMEchrome"
+  }
+
+  expect_failures = [var.chrome_path]
+}
+
+run "state_file_rejects_shell" {
+  command = plan
+
+  variables {
+    state_file = "$HOME/state\"; touch /tmp/PWNED; \""
+  }
+
+  expect_failures = [var.state_file]
+}
+
+run "log_file_rejects_shell" {
+  command = plan
+
+  variables {
+    log_file = "/tmp/$(touch /tmp/PWNED)"
+  }
+
+  expect_failures = [var.log_file]
+}
+
+run "log_file_rejects_home_prefix" {
+  command = plan
+
+  variables {
+    log_file = "$HOMElog"
+  }
+
+  expect_failures = [var.log_file]
 }
 
 run "workdir_rejects_shell" {
