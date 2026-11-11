@@ -1,14 +1,24 @@
 #!/usr/bin/env bash
 
-# Terraform encodes the path and requires $$ for braced shell expansions.
+# Terraform renders this file with templatefile(). ACTION and PERSONALIZE_PATH
+# are template values, and each braced shell expansion is written $${NAME}.
+
+BOLD='\033[0;1m'
+CODE='\033[36;40;1m'
+RESET='\033[0m'
 # shellcheck disable=SC2016 # Terraform replaces this placeholder.
-PERSONALIZE_SCRIPT=$(printf '%s' '${PERSONALIZE_PATH}' | base64 -d) || exit 1
-DISPLAY_PATH=$PERSONALIZE_SCRIPT
-ACTION="${ACTION}"
+PERSONALIZE_SCRIPT=$(printf '%s' '${PERSONALIZE_PATH}' | base64 -d) || {
+  echo "Failed to decode the personalize script path." >&2
+  exit 1
+}
+DISPLAY_PATH="$PERSONALIZE_SCRIPT"
 case "$PERSONALIZE_SCRIPT" in
-  \~) PERSONALIZE_SCRIPT="$HOME" ;;
-  \~/*) PERSONALIZE_SCRIPT="$HOME/$${PERSONALIZE_SCRIPT#??}" ;;
+  \~) PERSONALIZE_SCRIPT="$${HOME}" ;;
+  \~/*) PERSONALIZE_SCRIPT="$${HOME}/$${PERSONALIZE_SCRIPT#??}" ;;
+  *) ;;
 esac
+
+ACTION="${ACTION}"
 DROP_IN_DIR="$PERSONALIZE_SCRIPT.d"
 MODULE_DIR="$HOME/.coder-modules/coder/personalize"
 EXIT_STATUS=0
@@ -44,9 +54,6 @@ collect_drop_in_scripts() {
 if [[ "$ACTION" = start ]]; then
   write_config || printf 'Warning: failed to write personalize config file %s/config.\n' "$MODULE_DIR" >&2
 
-  BOLD='\033[0;1m'
-  CODE='\033[36;40;1m'
-  RESET='\033[0m'
   if [[ -f "$PERSONALIZE_SCRIPT" && -x "$PERSONALIZE_SCRIPT" ]]; then
     run_script "$PERSONALIZE_SCRIPT"
   elif [[ -e "$PERSONALIZE_SCRIPT" && ! -x "$PERSONALIZE_SCRIPT" ]]; then
