@@ -214,40 +214,38 @@ describe("personalize", async () => {
   );
 
   it.each([
-    { image: "alpine", shell: "sh" },
-    { image: "debian:bookworm-slim", shell: "dash" },
-  ])(
-    "writes sourceable configuration using $shell in $image",
-    async (runtime) => {
-      const path = "/tmp/personalize scripts/'$(printf injected) [daily]*";
-      const output = await executePersonalize({
-        ...runtime,
-        path,
-        before: createScript(path, "#!/bin/sh\nexit 0\n"),
-        after: [
-          '. "$HOME/.coder-modules/coder/personalize/config"',
-          'printf "%s\\n" "$PERSONALIZE_PATH" "$PERSONALIZE_DIR" "$PERSONALIZE_LOG_DIR"',
-          'test "$(find "$HOME/.coder-modules/coder/personalize" -name "config.*" | wc -l)" -eq 0',
-        ].join("\n"),
-      });
-      expect(output.exitCode).toBe(0);
-      expect(output.inspection).toEqual([
-        path,
-        `${path}.d`,
-        "/root/.coder-modules/coder/personalize/logs",
-      ]);
-    },
-  );
+    ["alpine", "sh"],
+    ["debian:bookworm-slim", "dash"],
+  ])("writes sourceable configuration in %s with %s", async (image, shell) => {
+    const path = "/tmp/personalize scripts/'$(printf injected) [daily]*";
+    const output = await executePersonalize({
+      image,
+      shell,
+      path,
+      before: createScript(path, "#!/bin/sh\nexit 0\n"),
+      after: [
+        '. "$HOME/.coder-modules/coder/personalize/config"',
+        'printf "%s\\n" "$PERSONALIZE_PATH" "$PERSONALIZE_DIR" "$PERSONALIZE_LOG_DIR"',
+        'test "$(find "$HOME/.coder-modules/coder/personalize" -name "config.*" | wc -l)" -eq 0',
+      ].join("\n"),
+    });
+    expect(output.exitCode).toBe(0);
+    expect(output.inspection).toEqual([
+      path,
+      `${path}.d`,
+      "/root/.coder-modules/coder/personalize/logs",
+    ]);
+  });
 
   it("resolves a relative path to an absolute config value", async () => {
     const output = await executePersonalize({
-      path: "./personalize",
+      path: "personalize",
       before: createScript("/personalize", "#!/bin/sh\necho relative\n"),
       after:
         '. "$HOME/.coder-modules/coder/personalize/config"; printf "%s\\n" "$PERSONALIZE_PATH"',
     });
     expect(output.exitCode).toBe(0);
     expect(output.stdout).toEqual(["relative"]);
-    expect(output.inspection).toEqual(["/./personalize"]);
+    expect(output.inspection).toEqual(["/personalize"]);
   });
 });
