@@ -41,6 +41,11 @@ run "custom_paths" {
   }
 
   assert {
+    condition     = strcontains(coder_script.personalize.script, base64encode(var.path)) && strcontains(coder_script.personalize_stop.script, base64encode(var.path))
+    error_message = "Both scripts must contain the base64-encoded custom path."
+  }
+
+  assert {
     condition     = !strcontains(coder_script.personalize.script, var.path) && !strcontains(coder_script.personalize_stop.script, var.path)
     error_message = "Neither script may interpolate the raw custom path."
   }
@@ -62,6 +67,62 @@ run "absolute_path_environment" {
     condition     = coder_env.personalize_path[0].value == var.path
     error_message = "Absolute paths must be exported unchanged."
   }
+}
+
+run "relative_path_environment" {
+  command = plan
+
+  variables {
+    path = "personalize"
+  }
+
+  assert {
+    condition     = length(coder_env.personalize_path) == 0
+    error_message = "Relative paths must use the absolute path in the config file, not an environment value."
+  }
+}
+
+run "named_home_environment" {
+  command = plan
+
+  variables {
+    path = "~someone/personalize"
+  }
+
+  assert {
+    condition     = length(coder_env.personalize_path) == 0
+    error_message = "Named-user home paths cannot be exported as absolute paths."
+  }
+}
+
+run "reject_empty" {
+  command = plan
+
+  variables {
+    path = ""
+  }
+
+  expect_failures = [var.path]
+}
+
+run "reject_bare_home" {
+  command = plan
+
+  variables {
+    path = "~"
+  }
+
+  expect_failures = [var.path]
+}
+
+run "reject_trailing_slash" {
+  command = plan
+
+  variables {
+    path = "/tmp/personalize/"
+  }
+
+  expect_failures = [var.path]
 }
 
 run "reject_newline" {
