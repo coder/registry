@@ -24,7 +24,7 @@ module "personalize" {
 The personalize script at `~/personalize` runs at start with no arguments. Keep its commands idempotent because it runs on every start:
 
 ```sh
-cat > ~/personalize <<'EOF'
+cat > ~/personalize << 'EOF'
 #!/usr/bin/env bash
 command -v jq >/dev/null 2>&1 || echo "Install jq for this workspace"
 EOF
@@ -35,7 +35,7 @@ Executable drop-in scripts in `~/personalize.d` receive one argument, `start` or
 
 ```sh
 mkdir -p ~/personalize.d
-cat > ~/personalize.d/10-cache <<'EOF'
+cat > ~/personalize.d/10-cache << 'EOF'
 #!/usr/bin/env bash
 case "$1" in
   start) mkdir -p "$HOME/.cache/my-tool" ;;
