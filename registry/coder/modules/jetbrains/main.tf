@@ -67,11 +67,11 @@ variable "tooltip" {
 
 variable "major_version" {
   type        = string
-  description = "The major version of the IDE. i.e. 2025.1"
+  description = "The major version of the IDE. i.e. 2026.3"
   default     = "latest"
   validation {
     condition     = can(regex("^[0-9]{4}\\.[1-3]$", var.major_version)) || var.major_version == "latest"
-    error_message = "The major_version must be a valid version number (e.g., 2025.1) or 'latest'"
+    error_message = "The major_version must be a valid version number (e.g., 2026.3) or 'latest'"
   }
 }
 
@@ -126,7 +126,7 @@ variable "download_base_link" {
 
 data "http" "jetbrains_ide_versions" {
   for_each = var.ide_config == null ? local.selected_ides : toset([])
-  url      = "${var.releases_base_link}/products/releases?code=${each.key}&type=${var.channel}${var.major_version == "latest" ? "&latest=true" : ""}"
+  url      = "${var.releases_base_link}/products/releases?code=${each.key}&type=${var.channel}&latest=true${var.major_version == "latest" ? "" : "&majorVersion=${var.major_version}"}"
 }
 
 variable "ide_config" {
@@ -138,7 +138,7 @@ variable "ide_config" {
     air-gapped environments or pinning specific versions.
 
     Each value must contain:
-    - build: Full build number (e.g. "253.28294.337").
+    - build: Full build number (e.g. "263.7307.200").
 
     Optionally override the default display name or icon:
     - name:  Display name of the IDE (e.g. "GoLand").
@@ -146,8 +146,8 @@ variable "ide_config" {
 
     Example:
     {
-      "GO" = { build = "261.22158.291" },
-      "IU" = { build = "261.22158.277" },
+      "GO" = { build = "263.7307.211" },
+      "IU" = { build = "263.7307.200" },
     }
   EOT
   type = map(object({
