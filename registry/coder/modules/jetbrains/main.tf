@@ -124,11 +124,6 @@ variable "download_base_link" {
   }
 }
 
-# Always request only the newest matching release (latest=true). When a major
-# version is pinned, filter server-side with majorVersion rather than fetching
-# the full release history: the http data source keeps the response body in
-# Terraform state several times, and full histories (1 MB+ per IDE) push
-# workspace state past the 4 MiB provisioner job limit.
 data "http" "jetbrains_ide_versions" {
   for_each = var.ide_config == null ? local.selected_ides : toset([])
   url      = "${var.releases_base_link}/products/releases?code=${each.key}&type=${var.channel}&latest=true${var.major_version == "latest" ? "" : "&majorVersion=${var.major_version}"}"

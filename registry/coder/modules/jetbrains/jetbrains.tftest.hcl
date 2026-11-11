@@ -193,8 +193,6 @@ run "specific_major_version" {
     error_message = "Expected the API to return a release for major version '2026.3', but got '${output.ide_metadata["GO"].json_data.majorVersion}'"
   }
 
-  # A pinned major version must be filtered server-side so only one release is
-  # fetched and stored in state, not the IDE's full release history.
   assert {
     condition     = endswith(data.http.jetbrains_ide_versions["GO"].url, "&latest=true&majorVersion=2026.3")
     error_message = "Expected a pinned major_version to query with latest=true and majorVersion, but got '${data.http.jetbrains_ide_versions["GO"].url}'"
