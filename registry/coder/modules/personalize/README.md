@@ -8,7 +8,7 @@ tags: [helper, personalize]
 
 # Personalize
 
-Personalize runs developer-managed scripts when a workspace starts or stops. The workspace image needs bash, as in v1.
+Personalize runs scripts that each developer keeps in their own home directory when a Coder workspace starts and when it stops. Developers can install personal tools, or start and stop their own services, without changing the shared template.
 
 ```tf
 module "personalize" {
@@ -19,24 +19,30 @@ module "personalize" {
 }
 ```
 
-## Add your scripts
+The workspace image must have bash.
 
-The personalize script at `~/personalize` runs at start with no arguments. Keep its commands idempotent because it runs on every start:
+## The personalize script
+
+`~/personalize` runs at every workspace start, with no arguments. Keep its commands idempotent.
 
 ```sh
 cat > ~/personalize << 'EOF'
 #!/usr/bin/env bash
+
 command -v jq >/dev/null 2>&1 || echo "Install jq for this workspace"
 EOF
 chmod +x ~/personalize
 ```
 
-Executable drop-in scripts in `~/personalize.d` receive one argument, `start` or `stop`:
+## Drop-in scripts
+
+Executable files in `~/personalize.d` run at start and at stop. Each one receives a single argument, `start` or `stop`.
 
 ```sh
 mkdir -p ~/personalize.d
 cat > ~/personalize.d/10-cache << 'EOF'
 #!/usr/bin/env bash
+
 case "$1" in
   start) mkdir -p "$HOME/.cache/my-tool" ;;
   stop) rm -f "$HOME/.cache/my-tool/session.lock" ;;
@@ -45,23 +51,30 @@ EOF
 chmod +x ~/personalize.d/10-cache
 ```
 
-At start, Personalize runs the personalize script, then drop-in scripts in byte order. At stop, it runs only drop-in scripts, in reverse order. User scripts retain the caller's locale. Only executable regular files run; hidden files and names ending in `~` are skipped. A non-executable regular file produces a notice. Everything else is skipped silently, and a missing drop-in directory is not an error.
+- At start, drop-in scripts run after the personalize script, in byte order of their names: `10-cache` runs before `20-server`.
+- At stop, drop-in scripts run in reverse order. The personalize script does not run at stop.
+- A file runs when it is a regular file and executable. Hidden files and names that end in `~` are skipped.
+- A script that fails does not stop the others. Personalize exits with the exit code of the first script that failed. At start, that puts the agent in `start_error`.
 
-Personalize prints a creation hint only when both paths are absent, and an executable-permission notice for a non-executable personalize script. Drop-in-only users get no hint. Set `path` to use a different personalize script; the drop-in directory is always `<path>.d`, so `path = "~/.init"` uses `~/.init.d`. Paths cannot contain newlines or carriage returns.
+The start script blocks login until every script has finished.
 
-A failed script does not prevent remaining drop-ins from running. Personalize prints its path and exit code and returns the first failing script's exit code, or 0. The start script blocks login until it finishes; a failure puts the agent in `start_error`.
+A script that launches a background process at start must detach it and redirect its output:
 
-If a start script launches a background process, detach it and redirect its output, for example `nohup my-tool </dev/null >"$HOME/.cache/my-tool/start.log" 2>&1 &`. The agent waits for script output pipes to close and reports failure if a background process keeps them open beyond its wait limit.
+```sh
+nohup my-tool < /dev/null > "$HOME/.cache/my-tool/output.log" 2>&1 &
+```
+
+The agent waits for the script's output to close and reports a failure if a background process keeps it open.
 
 ### Stop is best effort
 
-Stop scripts run when the agent receives a termination signal. The agent waits for them, but infrastructure can end the agent first. The module sets no stop timeout; do not rely on these scripts for essential data persistence or supervising services.
+Stop scripts run when the agent receives a termination signal. The agent waits for them, but the infrastructure can end the agent first, so do not rely on them to save essential data.
 
-In local testing with the stock Docker example template and Docker provider 4.7.0, two short drop-in scripts completed in reverse order and wrote to `logs/stop.log` without an explicit `destroy_grace_seconds`. This does not guarantee that longer scripts finish; set a suitable infrastructure grace period.
+With the Docker example template, short stop scripts ran to completion in testing without `destroy_grace_seconds`. Give longer scripts a grace period on the workspace resource.
 
-## Find configuration and logs
+## Find the paths and logs
 
-At each start, Personalize writes `~/.coder-modules/coder/personalize/config` through a temporary file and rename. A failed write only warns; user scripts still run. For the default path, the file contains:
+At every start, Personalize writes the paths it uses to `~/.coder-modules/coder/personalize/config`:
 
 ```sh
 PERSONALIZE_PATH=/home/coder/personalize
@@ -69,30 +82,56 @@ PERSONALIZE_DIR=/home/coder/personalize.d
 PERSONALIZE_LOG_DIR=/home/coder/.coder-modules/coder/personalize/logs
 ```
 
-Values use bash `printf %q`: spaces and ASCII punctuation that the shell treats specially are backslash-escaped, so `sh` and bash read them back, except that bash 3.2 does not escape `~`. Other characters can require bash to read the file, depending on the locale. Source it with `. "$HOME/.coder-modules/coder/personalize/config"` after a successful start.
+The file is shell syntax, written with bash `printf %q`, so a script can source it. `sh` and bash both read it; a path with non-ASCII characters can require bash.
 
-The agent also exports `PERSONALIZE_PATH`, replacing a leading `~/` with the user's home directory, unless `path` contains `$`. The agent would expand dollar signs in that value, so those paths use the config file only. The environment value is available before Personalize runs, but the config file is not; explicitly order scripts that depend on files created by one another.
+The agent also sets `PERSONALIZE_PATH` in the environment of every process it starts. Use the variable in a script that runs during workspace start, such as a dotfiles install script, because the config file is written when Personalize runs, which can be after that script:
 
-Output goes to `~/.coder-modules/coder/personalize/logs/start.log` and `~/.coder-modules/coder/personalize/logs/stop.log`.
+```sh
+if [ -n "${PERSONALIZE_PATH:-}" ]; then
+  mkdir -p "$PERSONALIZE_PATH.d"
+  ln -sf "$PWD/workspace-services" "$PERSONALIZE_PATH.d/10-services"
+fi
+```
+
+`PERSONALIZE_PATH` is not set when `path` contains `$`, because the agent expands `$` in environment values.
+
+Script output goes to `logs/start.log` and `logs/stop.log` in `~/.coder-modules/coder/personalize/`.
+
+## Use a custom path
+
+Set `path` to use a different personalize script. The drop-in directory is always `<path>.d`.
+
+```tf
+module "personalize" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/personalize/coder"
+  version  = "2.0.0"
+  agent_id = coder_agent.main.id
+
+  path = "~/.init" # The drop-in directory is ~/.init.d.
+}
+```
 
 ## Run after dotfiles
 
-To run Personalize after dotfiles finishes successfully:
+Scripts from different modules start concurrently. To run Personalize after the dotfiles module has finished, add a rule to the template:
 
 ```tf
 data "coder_script_order" "personalize_after_dotfiles" {
   rule {
+    phase = "start"
     run   = ["module.personalize"]
     after = ["module.dotfiles"]
-    phase = "start"
   }
 }
 ```
 
-This requires Coder 2.39.0 or later on the control plane, provisioners, and agents, and Coder Terraform provider 2.20.0 or later. Older components can ignore ordering declarations. Module-only rules need `phase` because Personalize contains both start and stop scripts. Terraform `depends_on` does not order script execution inside the agent.
+This needs Coder 2.39.0 or later on the server, provisioners and agents, and Coder Terraform provider 2.20.0 or later. Older versions ignore the rule without an error. The rule needs `phase` because Personalize has a start script and a stop script.
 
 ## Upgrade from v1
 
-Remove the unsupported `log_path` argument; logs now use the module's `logs/start.log` and `logs/stop.log`. Existing personalize scripts still run at start with no arguments. Use Coder Terraform provider 0.13.0 or later for `coder_env`.
+- Remove the `log_path` argument. Logs are now in `~/.coder-modules/coder/personalize/logs/`.
+- Use Coder Terraform provider 0.13.0 or later.
+- Add `phase = "start"` to an existing `coder_script_order` rule that selects `module.personalize`. Without it, template import fails.
 
-Add `phase = "start"` to existing `coder_script_order` rules that select `module.personalize` without a phase, or template import fails.
+Existing `~/personalize` scripts keep running at start with no arguments.
