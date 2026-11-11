@@ -14,6 +14,7 @@ import {
   runTerraformApply,
   runTerraformInit,
   TerraformState,
+  writeFileContainer,
 } from "~test";
 import {
   extractCoderEnvVars,
@@ -257,6 +258,34 @@ describe("codex", async () => {
     expect(installLog).toContain("Skipping Codex installation");
   });
 
+  test("user-managed config remains unchanged across repeated installs", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: { manage_config: "false" },
+    });
+    const configPath = "/home/coder/.codex/config.toml";
+    const original = '# My provider and preferences\nmodel = "custom"\n';
+    await execContainer(id, ["mkdir", "-p", "/home/coder/.codex"]);
+    await writeFileContainer(id, configPath, original);
+    await runScripts(id, scripts);
+    await runScripts(id, scripts);
+    expect(await readFileContainer(id, configPath)).toBe(original);
+    expect(await installLog(id)).toContain("Skipping Codex configuration");
+  });
+
+  test("user-managed config does not create a config directory", async () => {
+    const { id, scripts } = await setup({
+      moduleVariables: { manage_config: "false" },
+    });
+    await runScripts(id, scripts);
+    const result = await execContainer(id, [
+      "test",
+      "!",
+      "-e",
+      "/home/coder/.codex",
+    ]);
+    expect(result.exitCode).toBe(0);
+  });
+
   test("install-codex-version", async () => {
     const version = "0.134.0";
     const { id, coderEnvVars, scripts } = await setup({
@@ -392,6 +421,61 @@ describe("codex", async () => {
     expect(resp).not.toContain("[model_providers.");
     expect(resp).not.toContain("model_reasoning_effort");
   });
+
+  test("CODEX_HOME uses a custom directory containing spaces", async () => {
+    const codexHome = "/home/coder/state/codex home";
+    const baseConfig = 'model_reasoning_effort = "medium"';
+    const { id, scripts } = await setup({
+      moduleVariables: {
+        base_config_toml: baseConfig,
+      },
+    });
+    const defaultConfig = "/home/coder/.codex/config.toml";
+    const original = 'model_reasoning_effort = "high"\n';
+    expect(
+      (await execContainer(id, ["mkdir", "-p", path.dirname(defaultConfig)]))
+        .exitCode,
+    ).toBe(0);
+    await writeFileContainer(id, defaultConfig, original);
+
+    await runScripts(id, scripts, { CODEX_HOME: codexHome });
+    const config = await readFileContainer(id, `${codexHome}/config.toml`);
+    expect(config).toContain(baseConfig);
+    expect(await readFileContainer(id, defaultConfig)).toBe(original);
+  });
+
+  test.each([
+    ["unset", undefined],
+    ["empty", ""],
+  ])(
+    "CODEX_HOME %s falls back to HOME/.codex with spaces",
+    async (_scenario, codexHome) => {
+      const userHome = "/home/coder/home with spaces";
+      const { id, scripts } = await setup();
+      await runScripts(id, scripts);
+
+      // Run the materialized install script directly to isolate config paths
+      // from coder-utils' shell wrapper and explicitly unset CODEX_HOME.
+      const result = await execContainer(id, [
+        "env",
+        "-u",
+        "CODEX_HOME",
+        `HOME=${userHome}`,
+        ...(codexHome === undefined ? [] : [`CODEX_HOME=${codexHome}`]),
+        "/home/coder/.coder-modules/coder-labs/codex/scripts/install.sh",
+      ]);
+      if (result.exitCode !== 0) {
+        console.log(result.stdout);
+        console.log(result.stderr);
+      }
+      expect(result.exitCode).toBe(0);
+      const config = await readFileContainer(
+        id,
+        `${userHome}/.codex/config.toml`,
+      );
+      expect(config).toContain('preferred_auth_method = "apikey"');
+    },
+  );
 
   test("pre-post-install-scripts", async () => {
     const { id, scripts } = await setup({
