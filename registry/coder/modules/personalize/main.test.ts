@@ -262,6 +262,24 @@ describe("personalize", async () => {
     ]);
   });
 
+  it("round-trips an invalid UTF-8 byte followed by a quote in HOME on Alpine", async () => {
+    const home = String.raw`export HOME="$(printf "/tmp/personalize-\377'-home")"`;
+    const output = await executePersonalize({
+      environment: ["LC_ALL=C.UTF-8", "sh", "-c", `${home}; exec "$@"`, "sh"],
+      before: `${home}\nmkdir -p "$HOME"`,
+      after: [
+        "set -e",
+        '. "$HOME/.coder-modules/coder/personalize/config"',
+        'test "$PERSONALIZE_PATH" = "$HOME/personalize"',
+        'test "$PERSONALIZE_DIR" = "$HOME/personalize.d"',
+        'test "$PERSONALIZE_LOG_DIR" = "$HOME/.coder-modules/coder/personalize/logs"',
+        'printf "config values match HOME\\n"',
+      ].join("\n"),
+    });
+    expect(output.exitCode).toBe(0);
+    expect(output.inspection).toEqual(["config values match HOME"]);
+  });
+
   it("runs drop-in scripts without a personalize script", async () => {
     const output = await executePersonalize({
       before: [

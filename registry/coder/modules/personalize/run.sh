@@ -22,7 +22,7 @@ MODULE_DIR="$HOME/.coder-modules/coder/personalize"
 
 write_value() {
   printf "%s='" "$1" \
-    && printf '%s' "$2" | sed "s/'/'\\\\''/g" \
+    && printf '%s' "$2" | LC_ALL=C sed "s/'/'\\\\''/g" \
     && printf "'\n"
 }
 
