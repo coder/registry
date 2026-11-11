@@ -28,7 +28,9 @@ resource "coder_script" "prepare" {
 ```
 
 The provisioner agent must stay connected: Coder marks a workspace unhealthy
-when any agent disconnects.
+when any agent disconnects. It writes its logs to `provisioner_log_dir` and its
+script data under `runtime_dir`, not to the agent defaults in `/tmp`, which the
+main agent needs to own.
 
 `runtime_dir` must be tmpfs. Root-owned scripts cannot be replaced by the agent;
 only `agent.env` (0600) and `init.sh` (0700) pass to it. Both tokens also live in

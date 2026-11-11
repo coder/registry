@@ -84,6 +84,17 @@ variable "runtime_dir" {
   }
 }
 
+variable "provisioner_log_dir" {
+  description = "Log directory of the provisioner agent and its scripts. Kept apart from the main agent, which runs as another user."
+  type        = string
+  default     = "/var/log/coder-provisioner"
+
+  validation {
+    condition     = startswith(var.provisioner_log_dir, "/") && !can(regex("[\\x00-\\x1f\\x7f]", var.provisioner_log_dir))
+    error_message = "provisioner_log_dir must be an absolute path without control characters."
+  }
+}
+
 variable "path" {
   description = "Prepended to `PATH` for the provisioner agent. amazon-init's own PATH is short."
   type        = string
@@ -125,12 +136,13 @@ locals {
     PROVISIONER_INIT_SCRIPT = var.provisioner_init_script
     START_AGENT             = local.start_agent
 
-    ARG_ACCESS_URL        = base64encode(data.coder_workspace.me.access_url)
-    ARG_AGENT_TOKEN       = base64encode(var.agent_token)
-    ARG_PROVISIONER_TOKEN = base64encode(var.provisioner_token)
-    ARG_RUNTIME_DIR       = base64encode(var.runtime_dir)
-    ARG_PATH              = base64encode(var.path)
-    ARG_HOSTNAME          = base64encode(local.hostname)
+    ARG_ACCESS_URL          = base64encode(data.coder_workspace.me.access_url)
+    ARG_AGENT_TOKEN         = base64encode(var.agent_token)
+    ARG_PROVISIONER_TOKEN   = base64encode(var.provisioner_token)
+    ARG_RUNTIME_DIR         = base64encode(var.runtime_dir)
+    ARG_PROVISIONER_LOG_DIR = base64encode(var.provisioner_log_dir)
+    ARG_PATH                = base64encode(var.path)
+    ARG_HOSTNAME            = base64encode(local.hostname)
   })
 
   # EC2 caps user-data at 16 KiB; compress the bootstrap before sending it.

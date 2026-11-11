@@ -12,6 +12,7 @@ AGENT_TOKEN=$(decode '${ARG_AGENT_TOKEN}')
 PROVISIONER_TOKEN=$(decode '${ARG_PROVISIONER_TOKEN}')
 HOSTNAME_=$(decode '${ARG_HOSTNAME}')
 RUNTIME_DIR=$(decode '${ARG_RUNTIME_DIR}')
+PROVISIONER_LOG_DIR=$(decode '${ARG_PROVISIONER_LOG_DIR}')
 
 # The token stays on tmpfs; only handoff files are owned by the agent.
 install -d -m 0700 -- "$RUNTIME_DIR"
@@ -27,7 +28,8 @@ printf 'CODER_AGENT_TOKEN=%s\nCODER_AGENT_URL=%s\n' "$AGENT_TOKEN" "$ACCESS_URL"
 (
   unset INVOCATION_ID JOURNAL_STREAM SYSTEMD_EXEC_PID
   export CODER_AGENT_TOKEN="$PROVISIONER_TOKEN" CODER_AGENT_URL="$ACCESS_URL" \
-    BINARY_DIR="$RUNTIME_DIR/provisioner-bin" CODER_WORKSPACE_FACTS="$RUNTIME_DIR/workspace.json"
+    BINARY_DIR="$RUNTIME_DIR/provisioner-bin" CODER_WORKSPACE_FACTS="$RUNTIME_DIR/workspace.json" \
+    CODER_AGENT_LOG_DIR="$PROVISIONER_LOG_DIR" CODER_AGENT_SCRIPT_DATA_DIR="$RUNTIME_DIR/provisioner-data"
   # The agent sets SSH_CLIENT, so NixOS bash reads /etc/bashrc, which resets
   # PATH from /etc/profile unless the profile is marked as loaded.
   export __ETC_PROFILE_DONE=1
@@ -67,7 +69,11 @@ chmod 0644 -- "$file_path"
 # nixos-rebuild switch leaves units it does not manage alone.
 systemctl stop coder-provisioner 2>/dev/null || true
 systemctl reset-failed coder-provisioner 2>/dev/null || true
-install -d -m 0700 -- "$RUNTIME_DIR/provisioner-bin"
+install -d -m 0700 -- "$RUNTIME_DIR/provisioner-bin" "$RUNTIME_DIR/provisioner-data"
+install -d -m 0755 -- "$PROVISIONER_LOG_DIR"
+# Older versions let the provisioner use the agent defaults in /tmp as root,
+# which the main agent then cannot write. Only root creates such entries.
+find /tmp -maxdepth 1 -name 'coder-*' -user root -exec rm -rf -- {} + 2>/dev/null || true
 # shellcheck disable=SC2016
 if ! systemd-run --unit=coder-provisioner --description="Coder provisioner agent" \
   -p Restart=always -p RestartSec=5 \
