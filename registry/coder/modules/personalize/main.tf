@@ -19,7 +19,7 @@ variable "path" {
   type        = string
   default     = "~/personalize"
   validation {
-    condition     = !strcontains(var.path, "\n") && !strcontains(var.path, "\r")
+    condition     = length(regexall("[\n\r]", var.path)) == 0
     error_message = "The personalize path must not contain newlines or carriage returns."
   }
 }
@@ -49,8 +49,8 @@ resource "coder_script" "personalize_stop" {
 
 resource "coder_env" "personalize_path" {
   # The agent expands dollar signs in environment values, but not in scripts.
-  count    = strcontains(var.path, "$") ? 0 : 1
+  count    = can(regex("\\$", var.path)) ? 0 : 1
   agent_id = var.agent_id
   name     = "PERSONALIZE_PATH"
-  value    = var.path == "~" ? "$HOME" : startswith(var.path, "~/") ? "$HOME/${trimprefix(var.path, "~/")}" : var.path
+  value    = var.path == "~" ? "$HOME" : can(regex("^~/", var.path)) ? "$HOME/${trimprefix(var.path, "~/")}" : var.path
 }
