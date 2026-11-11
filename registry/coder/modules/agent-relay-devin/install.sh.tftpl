@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+# Install step, run by coder-utils before the start step, with
+# AGENT_RELAY_DEVIN_TOKEN (injected by the agent from the workspace secret)
+# and AGENT_RELAY_DEVIN_REMOTE_BINARY_SHA in scope.
+#
+# Downloads the devin-remote build the session asked for, verifies it
+# against its published SHA-256, and caches it under
+# $HOME/.devin/worker/cache. Never fails the build: it records the outcome
+# in install-result, and the start step turns a failure into the terminal
+# state Agent Relay observes, so there is one vocabulary.
+#
+#   ok <path>                 the verified binary to run
+#   failed download           the version or the binary could not be fetched
+#   failed checksum           the binary does not match its published hash
+#   failed unsupported-arch   no devin-remote build exists for this machine
+set -uo pipefail
+
+module_directory="${module_directory}"
+result_file="$module_directory/install-result"
+mkdir -p "$module_directory" || true
+# A result from a previous agent start never applies to this one.
+rm -f "$result_file" "$result_file.tmp" || echo "Cannot remove the previous install result" >&2
+
+record() {
+	# Write via a temp file so the start step never reads a partial line.
+	if ! { printf '%s\n' "$*" >"$result_file.tmp" && mv "$result_file.tmp" "$result_file"; }; then
+		echo "Cannot record the install result in $result_file" >&2
+	fi
+}
+
+if [ -z "$${AGENT_RELAY_DEVIN_TOKEN:-}" ]; then
+	echo "No Devin connect token in this build; skipping the devin-remote download."
+	exit 0
+fi
+
+%{ if remote_binary != "" ~}
+echo "remote_binary is set; using '${remote_binary}' from the image instead of downloading devin-remote."
+exit 0
+%{ else ~}
+static_base_url="${static_base_url}"
+cache_dir="$HOME/.devin/worker/cache"
+
+download() {
+	if command -v curl >/dev/null 2>&1; then
+		curl --fail --location --silent --show-error --output "$2" "$1"
+	elif command -v wget >/dev/null 2>&1; then
+		wget --quiet --output-document="$2" "$1"
+	else
+		echo "Downloading devin-remote requires curl or wget." >&2
+		return 1
+	fi
+}
+
+sha256_of() {
+	local out
+	if command -v sha256sum >/dev/null 2>&1; then
+		out="$(sha256sum "$1")" || return 1
+	elif command -v shasum >/dev/null 2>&1; then
+		out="$(shasum -a 256 "$1")" || return 1
+	else
+		echo "Verifying devin-remote requires sha256sum or shasum." >&2
+		return 1
+	fi
+	printf '%s' "$${out%% *}"
+}
+
+case "$(uname -m)" in
+x86_64) arch="x64" ;;
+aarch64 | arm64) arch="arm64" ;;
+*)
+	echo "No devin-remote build exists for $(uname -m)." >&2
+	record "failed unsupported-arch"
+	exit 0
+	;;
+esac
+
+tmp_files=()
+trap 'rm -f "$${tmp_files[@]+"$${tmp_files[@]}"}"' EXIT
+
+if ! mkdir -p "$cache_dir"; then
+	echo "Cannot create $cache_dir." >&2
+	record "failed download"
+	exit 0
+fi
+
+# The SHA names files and a URL, so it must be a short or full commit
+# hash whatever its source.
+sha="$${AGENT_RELAY_DEVIN_REMOTE_BINARY_SHA:-}"
+if [ -n "$sha" ]; then
+	if [[ ! "$sha" =~ ^[0-9a-f]{7,64}$ ]]; then
+		echo "agent_relay_devin_remote_binary_sha is not a commit SHA; refusing to download it." >&2
+		record "failed download"
+		exit 0
+	fi
+	echo "Using devin-remote $sha, as the session asked."
+else
+	latest="$(mktemp "$cache_dir/.latest.XXXXXX")" && tmp_files+=("$latest")
+	if [ -z "$${latest:-}" ] || ! download "$static_base_url/latest_linux_$arch" "$latest"; then
+		echo "Cannot read the latest devin-remote version from $static_base_url/latest_linux_$arch." >&2
+		record "failed download"
+		exit 0
+	fi
+	sha="$(tr -d '[:space:]' <"$latest")"
+	if [[ ! "$sha" =~ ^[0-9a-f]{7,64}$ ]]; then
+		echo "$static_base_url/latest_linux_$arch did not return a commit SHA." >&2
+		record "failed download"
+		exit 0
+	fi
+	echo "Using the latest devin-remote, $sha."
+fi
+
+name="devin-remote_$${sha}_linux_$${arch}"
+binary="$cache_dir/$name"
+# The hash the binary was verified against when it was cached. A cached
+# binary is used only while it still matches.
+hash_file="$binary.sha256"
+
+if [ -x "$binary" ] && [ -f "$hash_file" ]; then
+	read -r cached_hash _ <"$hash_file" || true
+	if [[ "$${cached_hash:-}" =~ ^[0-9a-f]{64}$ ]] && [ "$(sha256_of "$binary" || true)" = "$cached_hash" ]; then
+		echo "Using the cached, verified $binary."
+		record "ok $binary"
+		exit 0
+	fi
+	echo "Cached $binary does not match its recorded hash; downloading it again." >&2
+fi
+
+tmp_binary="$(mktemp "$cache_dir/.$name.XXXXXX")" && tmp_files+=("$tmp_binary")
+tmp_hash="$(mktemp "$cache_dir/.$name.sha256.XXXXXX")" && tmp_files+=("$tmp_hash")
+if [ -z "$${tmp_binary:-}" ] || [ -z "$${tmp_hash:-}" ]; then
+	echo "Cannot create temporary files in $cache_dir." >&2
+	record "failed download"
+	exit 0
+fi
+
+echo "Downloading $static_base_url/$name..."
+if ! download "$static_base_url/$name" "$tmp_binary" || ! download "$static_base_url/$name.sha256" "$tmp_hash"; then
+	echo "Cannot download devin-remote $sha for linux $arch." >&2
+	record "failed download"
+	exit 0
+fi
+
+expected=""
+read -r expected _ <"$tmp_hash" || true
+if [[ ! "$expected" =~ ^[0-9a-f]{64}$ ]]; then
+	echo "$static_base_url/$name.sha256 is not a SHA-256 hash." >&2
+	record "failed checksum"
+	exit 0
+fi
+actual="$(sha256_of "$tmp_binary" || true)"
+if [ "$actual" != "$expected" ]; then
+	echo "devin-remote $sha does not match its published SHA-256 (expected $expected, got $${actual:-nothing}); not running it." >&2
+	record "failed checksum"
+	exit 0
+fi
+
+# Renamed into place, hash first, so a concurrent reader sees either no
+# cached binary or a complete, verified one.
+if ! { chmod 755 "$tmp_binary" && printf '%s\n' "$expected" >"$tmp_hash" && mv -f "$tmp_hash" "$hash_file" && mv -f "$tmp_binary" "$binary"; }; then
+	echo "Cannot move devin-remote into $cache_dir." >&2
+	record "failed download"
+	exit 0
+fi
+echo "Verified and cached $binary."
+record "ok $binary"
+%{ endif ~}
