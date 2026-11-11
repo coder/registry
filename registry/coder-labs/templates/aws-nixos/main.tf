@@ -167,6 +167,13 @@ resource "coder_agent" "provisioner" {
     timeout      = 5
     script       = "cut -c1-12 /var/lib/coder-nixos/flake.rev 2>/dev/null || echo none"
   }
+  metadata {
+    key          = "build_log"
+    display_name = "Build log"
+    interval     = 60
+    timeout      = 5
+    script       = "readlink -e ${module.nix.log_dir}/rebuild-latest.log || echo none"
+  }
 }
 
 resource "coder_script" "nixos_rebuild" {
@@ -285,10 +292,6 @@ resource "coder_metadata" "workspace_info" {
   item {
     key   = "AMI"
     value = aws_instance.dev.ami
-  }
-  item {
-    key   = "Build logs location"
-    value = module.nix.log_dir
   }
 }
 
