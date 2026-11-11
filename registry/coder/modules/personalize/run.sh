@@ -38,7 +38,9 @@ write_config() (
   mv "$CONFIG_TMP" "$MODULE_DIR/config"
 )
 
+CONFIG_WRITTEN=1
 if ! write_config; then
+  CONFIG_WRITTEN=0
   printf 'Warning: failed to write personalize config file %s/config.\n' "$MODULE_DIR" >&2
 fi
 
@@ -58,11 +60,17 @@ else
 fi
 if [ ! -f "$SCRIPT" ] || [ ! -x "$SCRIPT" ]; then
   printf 'Add executable drop-in scripts to %b%s.d%b; they receive start or stop.\n' "$CODE" "$DISPLAY_PATH" "$RESET"
-  printf 'Find the module configuration at %s/config.\n' "$MODULE_DIR"
+  if [ "$CONFIG_WRITTEN" -eq 1 ]; then
+    printf 'Find the module configuration at %s/config.\n' "$MODULE_DIR"
+  fi
 fi
 
 if [ -e "$SCRIPT.d" ] || [ -L "$SCRIPT.d" ]; then
-  if [ ! -d "$SCRIPT.d" ] || [ ! -r "$SCRIPT.d" ] || [ ! -x "$SCRIPT.d" ]; then
+  if [ ! -d "$SCRIPT.d" ]; then
+    printf 'Skipping non-directory drop-in path: %s.d\n' "$SCRIPT"
+    exit "$STATUS"
+  fi
+  if [ ! -r "$SCRIPT.d" ] || [ ! -x "$SCRIPT.d" ]; then
     printf 'Skipping unreadable drop-in directory: %s.d\n' "$SCRIPT"
     exit "$STATUS"
   fi
