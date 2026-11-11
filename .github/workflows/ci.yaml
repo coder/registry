@@ -2,17 +2,32 @@ name: CI
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 # Cancel in-progress runs for pull requests when developers push new changes
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
-  test-terraform:
-    name: Validate Terraform output
+  changes:
+    name: Detect changed files
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      shared: ${{ steps.filter.outputs.shared }}
+      modules: ${{ steps.filter.outputs.modules }}
+      all_files: ${{ steps.filter.outputs.all_files }}
+      modules_files: ${{ steps.filter.outputs.modules_files }}
+      templates_files: ${{ steps.filter.outputs.templates_files }}
+      shell_files: ${{ steps.filter.outputs.shell_files }}
+      ts_shards: ${{ steps.shards.outputs.ts_shards }}
     steps:
       - name: Check out code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Detect changed files
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
@@ -21,6 +36,7 @@ jobs:
           filters: |
             shared:
               - 'test/**'
+              - 'setup.ts'
               - 'package.json'
               - 'bun.lock'
               - 'bunfig.toml'
@@ -38,6 +54,32 @@ jobs:
               - '**/*.sh'
             all:
               - '**'
+      - name: Choose TypeScript test shards
+        id: shards
+        env:
+          SHARED: ${{ steps.filter.outputs.shared }}
+        run: |
+          if [[ "$SHARED" == "true" ]]; then
+            echo 'ts_shards=[1,2,3,4]' >> "$GITHUB_OUTPUT"
+          else
+            echo 'ts_shards=[1]' >> "$GITHUB_OUTPUT"
+          fi
+
+  typescript-tests:
+    name: TypeScript tests (${{ matrix.shard }}/${{ strategy.job-total }})
+    needs: changes
+    if: needs.changes.outputs.shared == 'true' || needs.changes.outputs.modules == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.changes.outputs.ts_shards) }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
@@ -62,37 +104,97 @@ jobs:
         run: bun install
       - name: Run TypeScript tests
         env:
-          ALL_CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
-          SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
-          MODULE_CHANGED_FILES: ${{ steps.filter.outputs.modules_files }}
+          ALL_CHANGED_FILES: ${{ needs.changes.outputs.all_files }}
+          SHARED_CHANGED: ${{ needs.changes.outputs.shared }}
+          MODULE_CHANGED_FILES: ${{ needs.changes.outputs.modules_files }}
+          SHARD_INDEX: ${{ matrix.shard }}
+          SHARD_COUNT: ${{ strategy.job-total }}
         run: bun run check:typescript
-      - name: Run Terraform tests
-        env:
-          ALL_CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
-          SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
-          MODULE_CHANGED_FILES: ${{ steps.filter.outputs.modules_files }}
-        run: bun run check:terraform
-      - name: Run Terraform Validate
-        env:
-          ALL_CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
-          SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
-          MODULE_CHANGED_FILES: ${{ steps.filter.outputs.modules_files }}
-          TEMPLATE_CHANGED_FILES: ${{ steps.filter.outputs.templates_files }}
-        run: bun run check:validate
-      - name: Run ShellCheck
-        env:
-          ALL_CHANGED_FILES: ${{ steps.filter.outputs.all_files }}
-          SHARED_CHANGED: ${{ steps.filter.outputs.shared }}
-          SHELL_CHANGED_FILES: ${{ steps.filter.outputs.shell_files }}
-        run: bun run check:shellcheck
-      - name: Validate set -u ordering
-        run: ./scripts/validate_set_u_order.sh
-  validate-style:
-    name: Check for typos and unformatted code
+
+  terraform-tests:
+    name: Terraform tests
+    needs: changes
+    if: needs.changes.outputs.shared == 'true' || needs.changes.outputs.modules == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Check out code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
+      - name: Set up Terraform plugin cache
+        run: |
+          mkdir -p "$RUNNER_TEMP/terraform-plugin-cache"
+          {
+            echo "TF_PLUGIN_CACHE_DIR=$RUNNER_TEMP/terraform-plugin-cache"
+            echo "TF_PLUGIN_CACHE_MAY_BREAK_DEPENDENCY_LOCK_FILE=true"
+          } >> "$GITHUB_ENV"
+      - name: Run Terraform tests
+        env:
+          ALL_CHANGED_FILES: ${{ needs.changes.outputs.all_files }}
+          SHARED_CHANGED: ${{ needs.changes.outputs.shared }}
+          MODULE_CHANGED_FILES: ${{ needs.changes.outputs.modules_files }}
+        run: ./scripts/terraform_test_all.sh
+
+  validate-terraform-and-shell:
+    name: Terraform validate and ShellCheck
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_wrapper: false
+      - name: Set up Terraform plugin cache
+        run: |
+          mkdir -p "$RUNNER_TEMP/terraform-plugin-cache"
+          {
+            echo "TF_PLUGIN_CACHE_DIR=$RUNNER_TEMP/terraform-plugin-cache"
+            echo "TF_PLUGIN_CACHE_MAY_BREAK_DEPENDENCY_LOCK_FILE=true"
+          } >> "$GITHUB_ENV"
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install
+      - name: Run Terraform validate
+        if: ${{ !cancelled() }}
+        env:
+          ALL_CHANGED_FILES: ${{ needs.changes.outputs.all_files }}
+          SHARED_CHANGED: ${{ needs.changes.outputs.shared }}
+          MODULE_CHANGED_FILES: ${{ needs.changes.outputs.modules_files }}
+          TEMPLATE_CHANGED_FILES: ${{ needs.changes.outputs.templates_files }}
+        run: bun run check:validate
+      - name: Run ShellCheck
+        if: ${{ !cancelled() }}
+        env:
+          ALL_CHANGED_FILES: ${{ needs.changes.outputs.all_files }}
+          SHARED_CHANGED: ${{ needs.changes.outputs.shared }}
+          SHELL_CHANGED_FILES: ${{ needs.changes.outputs.shell_files }}
+        run: bun run check:shellcheck
+      - name: Validate set -u ordering
+        if: ${{ !cancelled() }}
+        run: ./scripts/validate_set_u_order.sh
+
+  validate-style:
+    name: Check for typos and unformatted code
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
@@ -107,23 +209,46 @@ jobs:
       - name: Validate formatting
         run: bun fmt:ci
       - name: Check for typos
-        uses: crate-ci/typos@7f9d0819ca1c008ade73f4b41fa9d258d48f605b # v1.51.1
+        if: ${{ !cancelled() }}
+        uses: crate-ci/typos@4c8b7f51ca60df14e3c5ca82770dfbbe6c3dae85 # v1.52.0
         with:
           config: .github/typos.toml
+
   validate-readme-files:
     name: Validate README files
     runs-on: ubuntu-latest
-    # We want to do some basic README checks first before we try analyzing the
-    # contents
-    needs: validate-style
+    timeout-minutes: 10
     steps:
       - name: Check out code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-      - name: Validate contributors
-        run: go build ./cmd/readmevalidation && ./readmevalidation
-      - name: Remove build file artifact
-        run: rm ./readmevalidation
+      - name: Validate README files and repository structure
+        run: go run ./cmd/readmevalidation
+
+  required-checks:
+    name: Required checks
+    needs:
+      - changes
+      - typescript-tests
+      - terraform-tests
+      - validate-terraform-and-shell
+      - validate-style
+      - validate-readme-files
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check job results
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          echo "Job results: $RESULTS"
+          if jq -e 'any(. == "failure" or . == "cancelled")' <<< "$RESULTS" > /dev/null; then
+            echo "::error::One or more CI jobs failed or were cancelled."
+            exit 1
+          fi
