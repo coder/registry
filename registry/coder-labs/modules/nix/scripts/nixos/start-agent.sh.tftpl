@@ -3,7 +3,7 @@
 # machine is prepared, also after a failure: the workspace must stay reachable.
 set -euo pipefail
 export PATH="/run/current-system/sw/bin:$PATH"
-RUNTIME_DIR=$(printf '%s' '${ARG_RUNTIME_DIR}' | base64 -d)
+RUNTIME_DIR=$(echo -n '${base64encode(ARG_RUNTIME_DIR)}' | base64 -d)
 
 chown_handoff() {
   local target

@@ -13,33 +13,16 @@ data "coder_workspace" "me" {}
 
 data "coder_workspace_owner" "me" {}
 
-variable "agent_token" {
-  description = "Agent token. Written to `agent.env` at 0600 on a tmpfs."
+variable "boot_script" {
+  description = "Root script to run on every boot, after the workspace facts and files are written. It inherits amazon-init's environment, including git, nix and nixos-rebuild on `PATH`. Sensitive, as it usually carries agent tokens."
   type        = string
-  sensitive   = true
-}
-
-variable "agent_init_script" {
-  description = "`coder_agent.init_script` of the main agent, run by `coder-agent.service` once `start_agent_command` starts it."
-  type        = string
-  sensitive   = true
-}
-
-variable "builder_token" {
-  description = "Token of the root agent that prepares the machine and then runs `start_agent_command`."
-  type        = string
-  sensitive   = true
-}
-
-variable "builder_init_script" {
-  description = "`coder_agent.init_script` of that root agent, run on every boot as the transient `coder-builder` unit."
-  type        = string
+  default     = ""
   sensitive   = true
 }
 
 variable "files" {
   description = <<-EOT
-    Files to write before the builder agent starts: absolute path to contents.
+    Files to write before the boot script runs: absolute path to contents.
     Written mode 0644, parent directories created.
 
     Contents are carried gzipped and base64-encoded, so any text is safe --
@@ -74,7 +57,7 @@ variable "values" {
 }
 
 variable "runtime_dir" {
-  description = "Directory for the agent handoff and this module's own state. Must be on a tmpfs: it holds the token."
+  description = "Directory for the bootstrap, the boot script and the workspace facts. Must be on a tmpfs: the boot script usually holds tokens."
   type        = string
   default     = "/run/coder"
 
@@ -84,19 +67,8 @@ variable "runtime_dir" {
   }
 }
 
-variable "builder_log_dir" {
-  description = "Log directory of the builder agent and its scripts. Kept apart from the main agent, which runs as another user."
-  type        = string
-  default     = "/var/log/coder-builder"
-
-  validation {
-    condition     = startswith(var.builder_log_dir, "/") && !can(regex("[\\x00-\\x1f\\x7f]", var.builder_log_dir))
-    error_message = "builder_log_dir must be an absolute path without control characters."
-  }
-}
-
 variable "path" {
-  description = "Prepended to `PATH` for the builder agent. amazon-init's own PATH is short."
+  description = "Prepended to `PATH` for the boot script."
   type        = string
   default     = "/run/current-system/sw/bin"
 }
@@ -125,24 +97,14 @@ locals {
     hostname    = local.hostname
   })
 
-  start_agent = templatefile("${path.module}/scripts/start-agent.sh.tftpl", {
-    ARG_RUNTIME_DIR = base64encode(var.runtime_dir)
-  })
-
   bootstrap = templatefile("${path.module}/scripts/bootstrap.sh.tftpl", {
-    FACTS_JSON          = jsonencode(local.facts)
-    FILES               = local.files
-    INIT_SCRIPT         = var.agent_init_script
-    BUILDER_INIT_SCRIPT = var.builder_init_script
-    START_AGENT         = local.start_agent
+    FACTS_JSON  = jsonencode(local.facts)
+    FILES       = local.files
+    BOOT_SCRIPT = var.boot_script
 
-    ARG_ACCESS_URL      = base64encode(data.coder_workspace.me.access_url)
-    ARG_AGENT_TOKEN     = base64encode(var.agent_token)
-    ARG_BUILDER_TOKEN   = base64encode(var.builder_token)
-    ARG_RUNTIME_DIR     = base64encode(var.runtime_dir)
-    ARG_BUILDER_LOG_DIR = base64encode(var.builder_log_dir)
-    ARG_PATH            = base64encode(var.path)
-    ARG_HOSTNAME        = base64encode(local.hostname)
+    ARG_RUNTIME_DIR = base64encode(var.runtime_dir)
+    ARG_PATH        = base64encode(var.path)
+    ARG_HOSTNAME    = base64encode(local.hostname)
   })
 
   # EC2 caps user-data at 16 KiB; compress the bootstrap before sending it.
@@ -159,7 +121,7 @@ locals {
 }
 
 output "user_data" {
-  description = "Rendered EC2 user-data. Sensitive: it carries the agent token."
+  description = "Rendered EC2 user-data. Sensitive: it carries the boot script."
   value       = local.user_data
   sensitive   = true
 
@@ -170,13 +132,8 @@ output "user_data" {
   }
 }
 
-output "start_agent_command" {
-  description = "Root command that hands the token to `coder-agent.service` and starts it. Run it once the machine is ready, also after a failure."
-  value       = "${var.runtime_dir}/start-agent.sh"
-}
-
 output "runtime_dir" {
-  description = "Directory holding the agent handoff and the workspace facts."
+  description = "Directory holding the bootstrap, the boot script and the workspace facts."
   value       = var.runtime_dir
 }
 

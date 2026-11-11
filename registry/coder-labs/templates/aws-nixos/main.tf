@@ -133,71 +133,6 @@ resource "coder_agent" "main" {
   }
 }
 
-# Root agent that rebuilds NixOS and then starts the main agent. It stays
-# connected because a disconnected agent marks the workspace unhealthy.
-resource "coder_agent" "builder" {
-  count = data.coder_workspace.me.start_count
-  arch  = local.instance.coder_arch
-  os    = "linux"
-  auth  = "token"
-  order = 1
-  # Only bash and curl stand between amazon-init and this agent.
-  connection_timeout = 300
-
-  display_apps {
-    vscode                 = false
-    vscode_insiders        = false
-    web_terminal           = false
-    ssh_helper             = false
-    port_forwarding_helper = false
-  }
-
-  # Include staged-but-not-activated generations in the agent metadata.
-  metadata {
-    key          = "nixos"
-    display_name = "NixOS version"
-    interval     = 60
-    timeout      = 10
-    script       = module.nix.version_command
-  }
-  metadata {
-    key          = "rev"
-    display_name = "Applied revision"
-    interval     = 60
-    timeout      = 5
-    script       = "cut -c1-12 /var/lib/coder-nixos/flake.rev 2>/dev/null || echo none"
-  }
-  metadata {
-    key          = "build_log"
-    display_name = "Build log"
-    interval     = 60
-    timeout      = 5
-    script       = "readlink -e ${module.nix.log_dir}/rebuild-latest.log || echo ${module.nix.log_dir}"
-  }
-}
-
-resource "coder_script" "nixos_rebuild" {
-  count        = data.coder_workspace.me.start_count
-  agent_id     = coder_agent.builder[0].id
-  display_name = "NixOS rebuild"
-  icon         = "/icon/nix.svg"
-  run_on_start = true
-  script       = <<-EOT
-    #!/usr/bin/env bash
-    set -euo pipefail
-    trap '${module.amazon-init.start_agent_command}' EXIT
-    # Pass the script as an argument: on stdin, git or nix could read it.
-    # Coder drops all later agent logs past 1 MiB, so cut the stream at a
-    # budget. The transcript keeps the full rebuild output.
-    bash -c "$(base64 -d <<< '${base64encode(module.nix.boot_script)}')" 2>&1 |
-      LC_ALL=C awk -v max=524288 '
-        { n += length($0) + 1 }
-        n <= max { print; fflush(); next }
-        !cut { cut = 1; print "Log output exceeds 512 KiB; the rest is in ${module.nix.log_dir}/rebuild-latest.log"; fflush() }
-      '
-  EOT
-}
-
 module "code-server" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/code-server/coder"
@@ -236,8 +171,8 @@ locals {
 }
 
 module "nix" {
-  source  = "registry.coder.com/coder-labs/nix/coder"
-  version = "~> 1.0"
+  # TODO: use registry.coder.com/coder-labs/nix/coder ~> 2.0 once released.
+  source = "git::https://github.com/coder/registry.git//registry/coder-labs/modules/nix?ref=phorcys/aws-nixos-dual-agent"
 
   config = {
     extra-substituters        = ["https://nix-community.cachix.org"]
@@ -245,19 +180,16 @@ module "nix" {
   }
 
   nixos = {
-    flake_ref  = var.flake_ref
-    flake_attr = local.flake_attr
+    flake_ref   = var.flake_ref
+    flake_attr  = local.flake_attr
+    agent_token = try(coder_agent.main[0].token, "")
+    arch        = local.instance.coder_arch
   }
 }
 
 module "amazon-init" {
-  source = "./modules/amazon-init"
-
-  agent_token       = try(coder_agent.main[0].token, "")
-  agent_init_script = try(coder_agent.main[0].init_script, "")
-
-  builder_token       = try(coder_agent.builder[0].token, "")
-  builder_init_script = try(coder_agent.builder[0].init_script, "")
+  source      = "./modules/amazon-init"
+  boot_script = module.nix.boot_script
 }
 
 resource "aws_instance" "dev" {

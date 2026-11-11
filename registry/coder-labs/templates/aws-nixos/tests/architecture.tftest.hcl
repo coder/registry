@@ -70,14 +70,6 @@ run "x86" {
     error_message = "The x86 instance, agent and flake attribute must agree."
   }
   assert {
-    condition     = coder_agent.builder[0].arch == "amd64" && coder_agent.builder[0].order > coder_agent.main[0].order
-    error_message = "The builder agent must match the instance and sort after the main agent."
-  }
-  assert {
-    condition     = coder_script.nixos_rebuild[0].run_on_start
-    error_message = "The builder must rebuild on start."
-  }
-  assert {
     condition     = aws_instance.dev.ami == "ami-example" && coder_metadata.workspace_info.item[0].value == aws_instance.dev.ami
     error_message = "AMI metadata must show the instance's actual AMI ID."
   }
@@ -99,10 +91,6 @@ run "arm" {
     condition     = local.nix_arch == "aarch64" && coder_agent.main[0].arch == "arm64" && local.flake_attr == "coder-workspace-ec2-aarch64"
     error_message = "The ARM instance, agent and flake attribute must agree."
   }
-  assert {
-    condition     = coder_agent.builder[0].arch == "arm64"
-    error_message = "The builder agent must match the ARM instance."
-  }
 }
 
 run "stop" {
@@ -115,8 +103,16 @@ run "stop" {
       transition  = "stop"
     }
   }
+  override_data {
+    target = module.nix.data.coder_workspace.me
+    values = {
+      name        = "test"
+      start_count = 0
+      transition  = "stop"
+    }
+  }
   assert {
-    condition     = length(coder_agent.main) == 0 && length(coder_agent.builder) == 0 && aws_ec2_instance_state.dev.state == "stopped"
+    condition     = length(coder_agent.main) == 0 && module.nix.builder_agent_id == null && aws_ec2_instance_state.dev.state == "stopped"
     error_message = "Stopping must remove both agents and stop, not destroy, the EC2 instance."
   }
 }
