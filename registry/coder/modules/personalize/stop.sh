@@ -14,6 +14,13 @@ case "$SCRIPT" in
   *) SCRIPT="$${PWD%/}/$SCRIPT" ;;
 esac
 
+if [ -e "$SCRIPT.d" ] || [ -L "$SCRIPT.d" ]; then
+  if [ ! -d "$SCRIPT.d" ] || [ ! -r "$SCRIPT.d" ] || [ ! -x "$SCRIPT.d" ]; then
+    printf 'Skipping unreadable drop-in directory: %s.d\n' "$SCRIPT"
+    exit 0
+  fi
+fi
+
 # Collect filenames in reverse byte order without changing user script locales.
 ORIGINAL_LC_ALL="$${LC_ALL-}"
 LC_ALL_WAS_SET="$${LC_ALL+x}"
@@ -31,14 +38,18 @@ fi
 STATUS=0
 for FILE; do
   case "$FILE" in *~) continue ;; esac
+  if [ -L "$FILE" ] && [ ! -e "$FILE" ]; then
+    printf 'Skipping broken drop-in script symlink: %s\n' "$FILE"
+    continue
+  fi
   [ -f "$FILE" ] || continue
   if [ ! -x "$FILE" ]; then
-    printf 'Skipping non-executable personalize script: %s\n' "$FILE"
+    printf 'Skipping non-executable drop-in script: %s\n' "$FILE"
     continue
   fi
   "$FILE" stop || {
     EXIT_CODE=$?
-    printf 'Personalize script %s failed with exit code %s.\n' "$FILE" "$EXIT_CODE" >&2
+    printf 'Drop-in script %s failed with exit code %s.\n' "$FILE" "$EXIT_CODE" >&2
     if [ "$STATUS" -eq 0 ]; then STATUS=$EXIT_CODE; fi
   }
 done
