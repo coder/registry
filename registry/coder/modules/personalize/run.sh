@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-export LC_ALL=C
 BOLD='\033[0;1m'
 CODE='\033[36;40;1m'
 RESET='\033[0m'
@@ -58,7 +57,18 @@ if [ ! -f "$SCRIPT" ] || [ ! -x "$SCRIPT" ]; then
   printf 'Find the module configuration at %s/config.\n' "$MODULE_DIR"
 fi
 
-for FILE in "$SCRIPT.d/"*; do
+# Use byte order only while collecting filenames, not while running user scripts.
+ORIGINAL_LC_ALL="$${LC_ALL-}"
+LC_ALL_WAS_SET="$${LC_ALL+x}"
+LC_ALL=C
+set -- "$SCRIPT.d/"*
+if [ "$LC_ALL_WAS_SET" = x ]; then
+  LC_ALL=$ORIGINAL_LC_ALL
+else
+  unset LC_ALL
+fi
+
+for FILE; do
   case "$FILE" in *~) continue ;; esac
   [ -f "$FILE" ] || continue
   if [ ! -x "$FILE" ]; then
