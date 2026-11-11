@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-export LC_ALL=C
 # shellcheck disable=SC2016 # Terraform replaces this placeholder.
 SCRIPT=$(printf '%s' '${PERSONALIZE_PATH}' | base64 -d) || {
   echo "Failed to decode the personalize script path." >&2
@@ -15,16 +14,24 @@ case "$SCRIPT" in
   *) SCRIPT="$${PWD%/}/$SCRIPT" ;;
 esac
 
-# Prepend each glob match to reverse byte order without splitting filenames.
+# Collect filenames in reverse byte order without changing user script locales.
+ORIGINAL_LC_ALL="$${LC_ALL-}"
+LC_ALL_WAS_SET="$${LC_ALL+x}"
+LC_ALL=C
 set --
 for FILE in "$SCRIPT.d/"*; do
-  case "$FILE" in *~) continue ;; esac
-  [ -f "$FILE" ] || continue
   set -- "$FILE" "$@"
 done
+if [ "$LC_ALL_WAS_SET" = x ]; then
+  LC_ALL=$ORIGINAL_LC_ALL
+else
+  unset LC_ALL
+fi
 
 STATUS=0
 for FILE; do
+  case "$FILE" in *~) continue ;; esac
+  [ -f "$FILE" ] || continue
   if [ ! -x "$FILE" ]; then
     printf 'Skipping non-executable personalize script: %s\n' "$FILE"
     continue
