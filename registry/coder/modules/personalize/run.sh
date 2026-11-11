@@ -50,6 +50,18 @@ collect_drop_in_scripts() {
   DROP_IN_SCRIPTS=("$DROP_IN_DIR/"*)
 }
 
+run_drop_in_script() {
+  local DROP_IN_SCRIPT=$1
+  if [[ ! -f "$DROP_IN_SCRIPT" || "$DROP_IN_SCRIPT" = *~ ]]; then
+    return
+  fi
+  if [[ ! -x "$DROP_IN_SCRIPT" ]]; then
+    printf 'Skipping non-executable drop-in script: %s\n' "$DROP_IN_SCRIPT"
+    return
+  fi
+  run_script "$DROP_IN_SCRIPT" "$ACTION"
+}
+
 if [[ "$ACTION" = start ]]; then
   if ! write_config; then
     printf 'Warning: failed to write personalize config file %s/config.\n' "$MODULE_DIR" >&2
@@ -69,22 +81,15 @@ if [[ "$ACTION" = start ]]; then
 fi
 
 collect_drop_in_scripts
-DROP_IN_COUNT="$${#DROP_IN_SCRIPTS[@]}"
-INDEX=0
-STEP=1
-if [[ "$ACTION" = stop ]]; then
-  INDEX=$((DROP_IN_COUNT - 1))
-  STEP=-1
+if [[ "$ACTION" = start ]]; then
+  for DROP_IN_SCRIPT in "$${DROP_IN_SCRIPTS[@]}"; do
+    run_drop_in_script "$DROP_IN_SCRIPT"
+  done
+else
+  DROP_IN_COUNT=$${#DROP_IN_SCRIPTS[@]}
+  for ((INDEX = DROP_IN_COUNT - 1; INDEX >= 0; INDEX--)); do
+    run_drop_in_script "$${DROP_IN_SCRIPTS[INDEX]}"
+  done
 fi
-for (( ; INDEX >= 0 && INDEX < DROP_IN_COUNT; INDEX += STEP)); do
-  DROP_IN_SCRIPT="$${DROP_IN_SCRIPTS[INDEX]}"
-  if [[ ! -f "$DROP_IN_SCRIPT" || "$DROP_IN_SCRIPT" = *~ ]]; then
-    continue
-  fi
-  if [[ ! -x "$DROP_IN_SCRIPT" ]]; then
-    printf 'Skipping non-executable drop-in script: %s\n' "$DROP_IN_SCRIPT"
-  else
-    run_script "$DROP_IN_SCRIPT" "$ACTION"
-  fi
-done
+
 exit "$EXIT_STATUS"
