@@ -25,7 +25,6 @@ EXIT_STATUS=0
 
 write_config() (
   mkdir -p "$MODULE_DIR" || exit 1
-  local TEMP_CONFIG
   TEMP_CONFIG=$(mktemp "$MODULE_DIR/config.XXXXXX") || exit 1
   # Rename a complete file; remove the temporary file if writing fails.
   trap 'rm -f "$TEMP_CONFIG"' EXIT
@@ -52,7 +51,9 @@ collect_drop_in_scripts() {
 }
 
 if [[ "$ACTION" = start ]]; then
-  write_config || printf 'Warning: failed to write personalize config file %s/config.\n' "$MODULE_DIR" >&2
+  if ! write_config; then
+    printf 'Warning: failed to write personalize config file %s/config.\n' "$MODULE_DIR" >&2
+  fi
 
   if [[ -f "$PERSONALIZE_SCRIPT" && -x "$PERSONALIZE_SCRIPT" ]]; then
     run_script "$PERSONALIZE_SCRIPT"
