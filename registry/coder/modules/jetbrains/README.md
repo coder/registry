@@ -82,13 +82,19 @@ provided build numbers directly. This is ideal for air-gapped environments
 or when caching IDE installations.
 
 > [!TIP]
-> To find the latest build number for an IDE, query the JetBrains releases API:
+> To get build numbers, query the JetBrains releases API for each product code
+> you need. This prints entries you can paste into `ide_config`:
 >
 > ```sh
-> curl -s "https://data.services.jetbrains.com/products/releases?code=GO&type=release&latest=true" | jq 'to_entries[0].value[0] | {build, version}'
+> for code in GO PY; do
+>   curl -s "https://data.services.jetbrains.com/products/releases?code=${code}&type=release&latest=true&majorVersion=2026.3" \
+>     | jq -r --arg code "$code" '"\"\($code)\" = { build = \"\(.[][0].build)\" }"'
+> done
 > ```
 >
-> Replace `GO` with the product code for the IDE you want (e.g. `IU`, `PY`, `CL`).
+> Set `code` to the IDEs in `options` (`CL`, `GO`, `IU`, `PS`, `PY`, `RD`, `RM`, `RR`, `WS`).
+> Change `majorVersion` to pin another release, or remove it to get the newest one.
+> Use `type=eap` for Early Access Preview builds.
 
 ```tf
 module "jetbrains" {
