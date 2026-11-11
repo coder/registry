@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 0.12"
+      version = ">= 0.13"
     }
   }
 }
@@ -19,8 +19,8 @@ variable "path" {
   type        = string
   default     = "~/personalize"
   validation {
-    condition     = length(regexall("[\n\r]", var.path)) == 0
-    error_message = "The personalize path must not contain newlines or carriage returns."
+    condition     = var.path != "" && var.path != "~" && !can(regex("/$", var.path)) && length(regexall("[\n\r]", var.path)) == 0
+    error_message = "The personalize path must not be empty, be only ~, end with /, or contain newlines or carriage returns."
   }
 }
 
@@ -49,8 +49,8 @@ resource "coder_script" "personalize_stop" {
 
 resource "coder_env" "personalize_path" {
   # The agent expands dollar signs in environment values, but not in scripts.
-  count    = can(regex("\\$", var.path)) ? 0 : 1
+  count    = can(regex("^(/|~/)", var.path)) && !can(regex("\\$", var.path)) ? 1 : 0
   agent_id = var.agent_id
   name     = "PERSONALIZE_PATH"
-  value    = var.path == "~" ? "$HOME" : can(regex("^~/", var.path)) ? "$HOME/${trimprefix(var.path, "~/")}" : var.path
+  value    = can(regex("^~/", var.path)) ? "$HOME/${trimprefix(var.path, "~/")}" : var.path
 }
