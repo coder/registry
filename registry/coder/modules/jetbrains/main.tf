@@ -138,7 +138,7 @@ variable "ide_config" {
     air-gapped environments or pinning specific versions.
 
     Each value must contain:
-    - build: Full build number (e.g. "253.28294.337").
+    - build: Full build number (e.g. "263.7307.200").
 
     Optionally override the default display name or icon:
     - name:  Display name of the IDE (e.g. "GoLand").
@@ -146,8 +146,8 @@ variable "ide_config" {
 
     Example:
     {
-      "GO" = { build = "261.22158.291" },
-      "IU" = { build = "261.22158.277" },
+      "GO" = { build = "263.7307.211" },
+      "IU" = { build = "263.7307.200" },
     }
   EOT
   type = map(object({

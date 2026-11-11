@@ -100,8 +100,8 @@ module "jetbrains" {
 
   # Only build is required. Name and icon fall back to built-in defaults.
   ide_config = {
-    "GO" = { build = "261.22158.291" }
-    "PY" = { build = "261.22158.340" }
+    "GO" = { build = "263.7307.211" }
+    "PY" = { build = "263.7307.206" }
     # Add entries for other IDEs as needed.
   }
 
