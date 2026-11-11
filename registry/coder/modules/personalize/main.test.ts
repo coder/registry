@@ -114,8 +114,7 @@ describe("personalize", async () => {
     const setup = writeScript(path, "echo custom");
     const printConfig =
       '. "$HOME/.coder-modules/coder/personalize/config"; printf "%s\\n" "$PERSONALIZE_PATH" "$PERSONALIZE_DIR" "$PERSONALIZE_LOG_DIR"';
-    const encodedProbe = Buffer.from(printConfig).toString("base64");
-    const inspect = `for shell in sh bash; do "$shell" -c "$(printf '%s' '${encodedProbe}' | base64 -d)" || exit; done`;
+    const inspect = `sh -c '${printConfig}' && bash -c '${printConfig}'`;
 
     const output = await runPersonalize({ path, setup, inspect });
 
