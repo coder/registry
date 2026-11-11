@@ -30,7 +30,11 @@ run "defaults" {
   }
 
   assert {
-    condition     = coder_env.personalize_path[0].name == "PERSONALIZE_PATH" && coder_env.personalize_path[0].value == "$HOME/personalize" && coder_env.personalize_path[0].agent_id == var.agent_id
+    condition = (
+      coder_env.personalize_path[0].name == "PERSONALIZE_PATH"
+      && coder_env.personalize_path[0].value == "$HOME/personalize"
+      && coder_env.personalize_path[0].agent_id == var.agent_id
+    )
     error_message = "The default path must be exported with an agent-expandable HOME."
   }
 }
@@ -43,10 +47,12 @@ run "custom_path" {
   }
 
   assert {
-    condition = alltrue([
-      for script in [coder_script.personalize.script, coder_script.personalize_stop.script] :
-      strcontains(script, base64encode(var.path)) && !strcontains(script, var.path)
-    ])
+    condition = (
+      strcontains(coder_script.personalize.script, base64encode(var.path))
+      && strcontains(coder_script.personalize_stop.script, base64encode(var.path))
+      && !strcontains(coder_script.personalize.script, var.path)
+      && !strcontains(coder_script.personalize_stop.script, var.path)
+    )
     error_message = "Both scripts must contain the encoded path, never the raw path."
   }
 
