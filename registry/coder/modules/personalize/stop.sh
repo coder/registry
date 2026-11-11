@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
 
+# Terraform renders this file with templatefile(), so each shell expansion
+# written with braces, such as $${HOME}, needs a doubled dollar sign.
+
+# The path is base64-encoded so that no character in it can change this script.
 # shellcheck disable=SC2016 # Terraform replaces this placeholder.
 PERSONALIZE_SCRIPT=$(printf '%s' '${PERSONALIZE_PATH}' | base64 -d) || {
   echo "Failed to decode the personalize script path." >&2
   exit 1
 }
 
+# Expand a leading ~ and resolve a relative path against the working directory.
 case "$PERSONALIZE_SCRIPT" in
   \~) PERSONALIZE_SCRIPT="$${HOME}" ;;
   \~/*) PERSONALIZE_SCRIPT="$${HOME}/$${PERSONALIZE_SCRIPT#??}" ;;
