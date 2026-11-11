@@ -23,13 +23,16 @@ if ! systemctl cat coder-agent >/dev/null 2>&1; then
 fi
 
 chown_handoff
-systemctl start coder-agent || true
+# Do not wait for the start job: it queues behind network-online.target.
+systemctl start --no-block coder-agent || true
 
-sleep 3
-if systemctl is-active --quiet coder-agent; then
-  echo "coder-agent is active."
-  exit 0
-fi
+for _ in $(seq 30); do
+  if systemctl is-active --quiet coder-agent; then
+    echo "coder-agent is active."
+    exit 0
+  fi
+  sleep 1
+done
 
 echo "coder-agent failed to start." >&2
 journalctl -u coder-agent --no-pager --lines=30 >&2 2>/dev/null || true

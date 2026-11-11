@@ -181,7 +181,14 @@ resource "coder_script" "nixos_rebuild" {
     trap '${module.amazon-init.start_agent_command}' EXIT
     # Pass the script as an argument: on stdin, git or nix could read it.
     # Trace only the boot script, not this line with the encoded script.
-    bash -euxo pipefail -c "$(base64 -d <<< '${base64encode(module.nix.boot_script)}')"
+    # Coder drops all later agent logs past 1 MiB, so cut the stream at a
+    # budget. The transcript keeps the full rebuild output.
+    bash -euxo pipefail -c "$(base64 -d <<< '${base64encode(module.nix.boot_script)}')" 2>&1 |
+      LC_ALL=C awk -v max=524288 '
+        { n += length($0) + 1 }
+        n <= max { print; fflush(); next }
+        !cut { cut = 1; print "Log output exceeds 512 KiB; the rest is in ${module.nix.log_dir}/rebuild-latest.log"; fflush() }
+      '
   EOT
 }
 
