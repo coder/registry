@@ -28,6 +28,7 @@ write_value() {
 
 write_config() (
   mkdir -p "$MODULE_DIR" || exit 1
+  [ ! -d "$MODULE_DIR/config" ] || exit 1
   CONFIG_TMP=$(mktemp "$MODULE_DIR/config.XXXXXX") || exit 1
   trap 'rm -f "$CONFIG_TMP"' EXIT
   {

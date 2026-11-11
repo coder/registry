@@ -398,7 +398,7 @@ describe("personalize", async () => {
     });
   }
 
-  it.each(["mkdir", "temporary file", "rename"])(
+  it.each(["mkdir", "temporary file", "rename", "config directory"])(
     "runs user scripts despite a config failure: %s",
     async (failure) => {
       const root = "/tmp/personalize-home/.coder-modules/coder/personalize";
@@ -417,9 +417,16 @@ describe("personalize", async () => {
             ? "touch /tmp/personalize-home/.coder-modules"
             : failure === "temporary file"
               ? `mkdir -p ${root}; chmod 555 ${root}`
-              : `mkdir -p ${root}/config; chown 65534:65534 ${root}; chmod 000 ${root}/config`,
+              : failure === "rename"
+                ? `mkdir -p ${root}; touch ${root}/config; chmod 1777 ${root}`
+                : `mkdir -p ${root}/config; chown -R 65534:65534 ${root}`,
         ].join("\n"),
-        after: `test -z "$(find ${root} -maxdepth 1 -name 'config.*' 2>/dev/null)"`,
+        after: [
+          failure === "config directory" ? `test -d ${root}/config` : "",
+          `test -z "$(find ${root} -name 'config.*' 2>/dev/null)"`,
+        ]
+          .filter(Boolean)
+          .join(" && "),
       });
       expect(output.exitCode).toBe(0);
       expect(output.stdout).toEqual(["personalize", "drop-in start"]);
