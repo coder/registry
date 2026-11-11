@@ -115,15 +115,16 @@ resource "coder_script" "nixos_rebuild" {
   script = <<-EOT
     #!/usr/bin/env bash
     set -euo pipefail
-    # Start the main agent on every outcome. Keep the rebuild status; fail
-    # only if the rebuild worked but the main agent did not start.
-    trap 'rc=$?; ${local.start_agent} || [ "$rc" -ne 0 ] || rc=1; exit "$rc"' EXIT
-    bash -c "$(base64 -d <<< '${base64encode(local.rebuild_script)}')" 2>&1 |
+    if ! bash -c "$(base64 -d <<< '${base64encode(local.rebuild_script)}')" 2>&1 |
       LC_ALL=C awk -v max=524288 '
         { n += length($0) + 1 }
         n <= max { print; fflush(); next }
         !cut { cut = 1; print "Log output exceeds 512 KiB; the rest is in ${var.nixos.log_dir}/rebuild-latest.log"; fflush() }
-      '
+      '; then
+      echo "The rebuild failed; the main agent stays stopped. Fix the flake, then run 'systemctl restart coder-builder' from this agent or restart the workspace." >&2
+      exit 1
+    fi
+    ${local.start_agent}
   EOT
 }
 

@@ -307,6 +307,17 @@ stat -c '%U:%a' "$RUNTIME_DIR"
         env,
       );
       expect(await boot()).toContain("tracks another repository");
+      await executable(
+        path.join(bin, "nixos-rebuild"),
+        "#!/usr/bin/env bash\necho build broke\nexit 1\n",
+      );
+      await writeFile(path.join(checkout, "flake.nix"), "broken\n");
+      const failedBoot = await boot().then(
+        () => "",
+        (error: Error) => error.message,
+      );
+      expect(failedBoot).toContain("the main agent stays stopped");
+      expect(failedBoot).not.toContain("main agent started");
       expect(await readFile(path.join(checkout, "secret"), "utf8")).toBe(
         "keep-secret\n",
       );
