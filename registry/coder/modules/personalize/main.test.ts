@@ -34,6 +34,8 @@ const executePersonalize = async ({
   after = "",
   image = "alpine",
   shell = "sh",
+  environment = [] as string[],
+  user = "root",
 } = {}) => {
   const state = await runTerraformApply(import.meta.dir, {
     agent_id: "foo",
@@ -47,12 +49,24 @@ const executePersonalize = async ({
   const id = await runContainer(image);
   try {
     if (before) {
-      const setup = await execContainer(id, [shell, "-c", before]);
+      const setup = await execContainer(
+        id,
+        [shell, "-c", before],
+        ["--user", "root"],
+      );
       expect(setup.exitCode, setup.stderr).toBe(0);
     }
-    const output = await execContainer(id, [shell, "-c", script]);
+    const output = await execContainer(
+      id,
+      ["env", ...environment, shell, "-c", script],
+      ["--user", user],
+    );
     const inspection = after
-      ? await execContainer(id, [shell, "-c", after])
+      ? await execContainer(
+          id,
+          ["env", ...environment, shell, "-c", after],
+          ["--user", user],
+        )
       : undefined;
     if (inspection) {
       expect(inspection.exitCode, inspection.stderr).toBe(0);
@@ -80,13 +94,15 @@ describe("personalize", async () => {
   it("warns without personalize script", async () => {
     const output = await executePersonalize();
     expect(output.exitCode).toBe(0);
-    expect(output.stdout).toContain(
+    expect(output.stdout).toEqual([
       "✨ \u001b[0;1mYou don't have a personalize script!",
-    );
-    expect(output.stdout.join("\n")).toContain("~/personalize.d");
-    expect(output.stdout.join("\n")).toContain(
-      "/root/.coder-modules/coder/personalize/config",
-    );
+      "",
+      "Create a script at \u001b[36;40;1m~/personalize\u001b[0m and make it executable.",
+      "It will run every time your workspace starts. Use it to install personal packages!",
+      "",
+      "Add executable drop-in scripts to \u001b[36;40;1m~/personalize.d\u001b[0m; they receive start or stop.",
+      "Find the module configuration at /root/.coder-modules/coder/personalize/config.",
+    ]);
   });
 
   it("warns when the personalize script is not executable", async () => {
@@ -147,13 +163,22 @@ describe("personalize", async () => {
     expect(output.stdout).toContain("later");
   });
 
-  it.each(["start", "stop"])(
-    "runs eligible drop-ins in %s order with the phase argument",
-    async (phase) => {
+  it.each([
+    ["start", "alpine", "sh"],
+    ["stop", "alpine", "sh"],
+    ["start", "codercom/example-base:ubuntu", "bash"],
+    ["stop", "codercom/example-base:ubuntu", "bash"],
+  ])(
+    "runs eligible drop-in scripts in %s byte order in %s with %s",
+    async (phase, image, shell) => {
       const record = (name: string) =>
         `#!/bin/sh\nprintf '${name} %s\\n' "$1" >> /tmp/order\n`;
       const output = await executePersonalize({
         phase,
+        image,
+        shell,
+        environment:
+          shell === "bash" ? ["LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8"] : [],
         before: [
           createScript("/root/personalize", record("legacy")),
           createScript("/root/personalize.d/20-last", record("20")),
@@ -192,7 +217,7 @@ describe("personalize", async () => {
           createScript("/root/personalize.d/30-last", "#!/bin/sh\necho last\n"),
         ].join("\n"),
       });
-      expect(output.exitCode).not.toBe(0);
+      expect(output.exitCode).toBe(17);
       expect(output.stdout).toEqual(
         phase === "start" ? ["first", "last"] : ["last", "first"],
       );
@@ -236,6 +261,136 @@ describe("personalize", async () => {
       "/root/.coder-modules/coder/personalize/logs",
     ]);
   });
+
+  it("runs drop-in scripts without a personalize script", async () => {
+    const output = await executePersonalize({
+      before: [
+        createScript(
+          "/root/personalize.d/10-first",
+          '#!/bin/sh\nprintf "first %s\\n" "$1"\n',
+        ),
+        createScript(
+          "/root/personalize.d/20-last",
+          '#!/bin/sh\nprintf "last %s\\n" "$1"\n',
+        ),
+      ].join("\n"),
+    });
+    expect(output.exitCode).toBe(0);
+    expect(output.stdout.slice(-2)).toEqual(["first start", "last start"]);
+  });
+
+  for (const phase of ["start", "stop"]) {
+    it.each(["set", "empty", "unset"])(
+      `preserves the caller locale at ${phase} with %s LC_ALL in bash`,
+      async (setting) => {
+        const probe = [
+          'printf "LC_ALL_SET=%s VALUE=[%s]\\n" "${LC_ALL+x}" "${LC_ALL-}"',
+          'printf "sorted=%s\\n" "$(printf "%s\\n" a A b B | sort | tr "\\n" ",")"',
+        ].join("\n");
+        const environment =
+          setting === "unset"
+            ? ["-u", "LC_ALL", "LANG=en_US.UTF-8"]
+            : [
+                "LANG=en_US.UTF-8",
+                `LC_ALL=${setting === "set" ? "en_US.UTF-8" : ""}`,
+              ];
+        const output = await executePersonalize({
+          phase,
+          image: "codercom/example-base:ubuntu",
+          shell: "bash",
+          environment,
+          before: [
+            createScript(
+              "/root/personalize",
+              `#!/usr/bin/env bash\n${probe}\n`,
+            ),
+            createScript(
+              "/root/personalize.d/10-locale",
+              `#!/usr/bin/env bash\n${probe}\n`,
+            ),
+          ].join("\n"),
+          after: probe,
+        });
+        const expected = [
+          `LC_ALL_SET=${setting === "unset" ? "" : "x"} VALUE=[${setting === "set" ? "en_US.UTF-8" : ""}]`,
+          "sorted=a,A,b,B,",
+        ];
+        expect(output.exitCode).toBe(0);
+        expect(output.inspection).toEqual(expected);
+        expect(output.stdout).toEqual(
+          phase === "start" ? [...expected, ...expected] : expected,
+        );
+      },
+    );
+
+    it.each(["000", "311", "file"])(
+      `notices an unreadable drop-in directory once at ${phase}: %s`,
+      async (mode) => {
+        const output = await executePersonalize({
+          phase,
+          path: "/tmp/personalize",
+          user: "65534:65534",
+          environment: ["HOME=/tmp/personalize-home"],
+          before: [
+            "mkdir -p /tmp/personalize-home; chown 65534:65534 /tmp/personalize-home",
+            createScript("/tmp/personalize", "#!/bin/sh\nexit 0\n"),
+            mode === "file"
+              ? createScript("/tmp/personalize.d", "not a directory", false)
+              : `mkdir -p /tmp/personalize.d; chmod ${mode} /tmp/personalize.d`,
+          ].join("\n"),
+        });
+        expect(output.exitCode).toBe(0);
+        expect(output.stdout).toEqual([
+          "Skipping unreadable drop-in directory: /tmp/personalize.d",
+        ]);
+      },
+    );
+
+    it(`notices broken drop-in script symlinks at ${phase}`, async () => {
+      const output = await executePersonalize({
+        phase,
+        before: [
+          createScript("/root/personalize", "#!/bin/sh\nexit 0\n"),
+          "mkdir -p /root/personalize.d; ln -s /missing /root/personalize.d/10-broken",
+        ].join("\n"),
+      });
+      expect(output.exitCode).toBe(0);
+      expect(output.stdout).toEqual([
+        "Skipping broken drop-in script symlink: /root/personalize.d/10-broken",
+      ]);
+    });
+  }
+
+  it.each(["mkdir", "temporary file", "rename"])(
+    "runs user scripts despite a config failure: %s",
+    async (failure) => {
+      const root = "/tmp/personalize-home/.coder-modules/coder/personalize";
+      const output = await executePersonalize({
+        path: "/tmp/personalize",
+        user: "65534:65534",
+        environment: ["HOME=/tmp/personalize-home"],
+        before: [
+          "mkdir -p /tmp/personalize-home; chown 65534:65534 /tmp/personalize-home",
+          createScript("/tmp/personalize", "#!/bin/sh\necho personalize\n"),
+          createScript(
+            "/tmp/personalize.d/10-first",
+            '#!/bin/sh\nprintf "drop-in %s\\n" "$1"\n',
+          ),
+          failure === "mkdir"
+            ? "touch /tmp/personalize-home/.coder-modules"
+            : failure === "temporary file"
+              ? `mkdir -p ${root}; chmod 555 ${root}`
+              : `mkdir -p ${root}/config; chown 65534:65534 ${root}; chmod 000 ${root}/config`,
+        ].join("\n"),
+        after: `test -z "$(find ${root} -maxdepth 1 -name 'config.*' 2>/dev/null)"`,
+      });
+      expect(output.exitCode).toBe(0);
+      expect(output.stdout).toEqual(["personalize", "drop-in start"]);
+      expect(output.stderr.join("\n")).toContain(
+        `Warning: failed to write personalize config file ${root}/config.`,
+      );
+    },
+  );
 
   it("resolves a relative path to an absolute config value", async () => {
     const output = await executePersonalize({
