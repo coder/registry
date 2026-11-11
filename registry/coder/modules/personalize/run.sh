@@ -57,10 +57,10 @@ if [[ "$ACTION" = start ]]; then
 
   if [[ -f "$PERSONALIZE_SCRIPT" && -x "$PERSONALIZE_SCRIPT" ]]; then
     run_script "$PERSONALIZE_SCRIPT"
-  elif [[ -e "$PERSONALIZE_SCRIPT" && ! -x "$PERSONALIZE_SCRIPT" ]]; then
+  elif [[ -f "$PERSONALIZE_SCRIPT" ]]; then
     echo "🔐 Your personalize script isn't executable!"
     printf 'Make %b%s%b executable before restarting the workspace.\n' "$CODE" "$DISPLAY_PATH" "$RESET"
-  elif [[ ! -e "$PERSONALIZE_SCRIPT" && ! -e "$DROP_IN_DIR" ]]; then
+  elif [[ ! -e "$DROP_IN_DIR" ]]; then
     printf "✨ %bYou don't have a personalize script!\n\n" "$BOLD"
     printf 'Create a script at %b%s%b and make it executable.\n' "$CODE" "$DISPLAY_PATH" "$RESET"
     printf 'It will run every time your workspace starts. Use it to install personal packages!\n\n'
