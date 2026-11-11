@@ -257,7 +257,7 @@ describe("personalize", async () => {
     );
   });
 
-  it("preserves set and unset caller locales for user scripts", async () => {
+  it("preserves set, empty and unset caller locales for user scripts", async () => {
     const probe = 'printf "LC_ALL=%s:%s\\n" "${LC_ALL+x}" "${LC_ALL-}"';
     const setup = [
       writeScript("/root/personalize", probe),
@@ -265,6 +265,7 @@ describe("personalize", async () => {
     ].join("\n");
     const cases = [
       { environment: utf8Locale, expected: "LC_ALL=x:en_US.UTF-8" },
+      { environment: ["LANG=en_US.UTF-8", "LC_ALL="], expected: "LC_ALL=x:" },
       {
         environment: ["-u", "LC_ALL", "LANG=en_US.UTF-8"],
         expected: "LC_ALL=:",
