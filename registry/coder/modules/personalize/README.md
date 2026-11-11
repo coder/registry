@@ -69,7 +69,7 @@ PERSONALIZE_DIR=/home/coder/personalize.d
 PERSONALIZE_LOG_DIR=/home/coder/.coder-modules/coder/personalize/logs
 ```
 
-Values use bash `printf %q`: printable special characters are backslash-escaped, readable by `sh` and bash. Nonprinting characters can require bash to read the file. Source it with `. "$HOME/.coder-modules/coder/personalize/config"` after a successful start.
+Values use bash `printf %q`: spaces and ASCII punctuation that the shell treats specially are backslash-escaped, so `sh` and bash read them back, except that bash 3.2 does not escape `~`. Other characters can require bash to read the file, depending on the locale. Source it with `. "$HOME/.coder-modules/coder/personalize/config"` after a successful start.
 
 The agent also exports `PERSONALIZE_PATH`, replacing a leading `~/` with the user's home directory, unless `path` contains `$`. The agent would expand dollar signs in that value, so those paths use the config file only. The environment value is available before Personalize runs, but the config file is not; explicitly order scripts that depend on files created by one another.
 
