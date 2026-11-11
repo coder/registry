@@ -8,7 +8,9 @@ tags: [vm, linux, aws, nixos, persistent-vm]
 
 # NixOS workspaces on AWS EC2
 
-Boot an EC2 workspace from a Git flake. NixOS rebuilds before the agent starts.
+Boot an EC2 workspace from a Git flake. NixOS rebuilds before the agent starts, using the [Nix(OS) module](../../modules/nix).
+
+The boot rebuild also uses the nix-community Cachix cache alongside `cache.nixos.org`, via the module's `config`. This covers the first rebuild from the AMI; persistent cache configuration for the daemon and later manual rebuilds belongs in the flake's `nix.settings`.
 
 ## Before you start
 
@@ -16,7 +18,7 @@ Boot an EC2 workspace from a Git flake. NixOS rebuilds before the agent starts.
   See the [EC2 policy example](../../../coder/templates/aws-linux/PREREQUISITES.md); its `RunInstances` and `CreateTags` permissions cover more than tagged resources.
 - Keep a default VPC/subnet. Allow provisioner egress to AWS/JetBrains and VM egress to Coder/Git/Nix caches.
 - Use a supported Git URL: `https://host/org/repo` or `git+ssh://git@host/org/repo`, with optional `?ref=branch`.
-  `github:` and `?dir=` are not supported. Commit your flake before starting a workspace.
+  Commit your flake before starting a workspace.
 
 ## Choose a flake
 

@@ -7,7 +7,8 @@
 #
 # Scripts run through coder-utils, which orders the install step before
 # the start step and keeps a copy of each script and its output under
-# module_directory for debugging.
+# module_directory for debugging. The pre-install and stop steps render
+# the same best-effort process cleanup script.
 #
 # Parameter contract (enforced by Agent Relay at startup via the dynamic
 # parameters evaluate endpoint):
@@ -19,8 +20,12 @@
 #     dedupe and reconciliation query workspaces with `param:` search
 #     filters on them. agent_relay_cursor_repo_url is stamped on every
 #     build (empty for repo-less pools) so the contract stays static.
-#   - agent_relay_credential is an ephemeral worker input, reset between
-#     builds.
+#
+# The worker token is not a parameter. Agent Relay sends it as an
+# ephemeral workspace secret, which the agent injects as
+# AGENT_RELAY_CURSOR_TOKEN. It never reaches the provisioner, Terraform
+# state, or the build's parameters, so nothing in this module can read
+# it.
 #
 # The worker's lifecycle is published through the agent_relay_status agent
 # metadata item, whose script this module renders. The script starts
@@ -91,6 +96,25 @@ variable "log_file" {
   description = "Path the detached worker's output is written to."
 }
 
+variable "management_addr" {
+  description = "Listen address for the worker's /healthz, /readyz, and /metrics HTTP server (the CLI's --management-addr), as host:port. session_attached_metadata_script reads it. Keep it on loopback unless something outside the workspace must scrape it. Empty disables the server, and session_attached_metadata_script then reports disabled."
+  type        = string
+  default     = "127.0.0.1:3287"
+
+  # Rendered into the supervisor as an argument, so it is restricted to a
+  # hostname, IPv4, or bracketed IPv6 host and a port. The host may be empty
+  # (":3287") to bind every interface.
+  validation {
+    condition     = var.management_addr == "" || can(regex("^(\\[[0-9A-Fa-f:.]+\\]|[A-Za-z0-9.-]*):[0-9]{1,5}$", var.management_addr))
+    error_message = "management_addr must be empty or host:port, e.g. 127.0.0.1:3287, :3287, or [::1]:3287."
+  }
+
+  validation {
+    condition     = var.management_addr == "" || try(tonumber(regex(":([0-9]+)$", var.management_addr)[0]) <= 65535 && tonumber(regex(":([0-9]+)$", var.management_addr)[0]) > 0, false)
+    error_message = "management_addr port must be from 1 to 65535."
+  }
+}
+
 variable "serving_log_pattern" {
   type        = string
   default     = "in use"
@@ -101,6 +125,26 @@ variable "serving_log_pattern" {
   validation {
     condition     = length(var.serving_log_pattern) > 0
     error_message = "serving_log_pattern must not be empty; an empty pattern matches every log line."
+  }
+}
+
+variable "additional_args" {
+  description = "Additional arguments to pass to `agent worker`, one list element per argument, in order (e.g. `[\"--header\", \"a: 1\", \"--header\", \"b: 2\", \"--verbose\"]`). Each element is passed as written, so a flag can repeat and a value may contain spaces."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for a in var.additional_args : a != "" && !can(regex("\n", a))])
+    error_message = "additional_args elements must be non-empty and must not contain newlines."
+  }
+
+  # The module already sets these: the pool and idle timeout come from Agent
+  # Relay's parameters, the token is passed by file so it stays off the
+  # command line, and the management server and desktop flags have their own
+  # inputs. Keep this list in sync with the `worker` flags in start.sh.tftpl.
+  validation {
+    condition     = !anytrue([for a in var.additional_args : contains(["--pool", "--idle-release-timeout", "--auth-token-file", "--auth-token", "--management-addr", "--computer-use", "--share-desktop"], split("=", a)[0])])
+    error_message = "additional_args must not set --pool, --idle-release-timeout, --auth-token-file, --auth-token, --management-addr, --computer-use, or --share-desktop; the module sets them (use management_addr, computer_use, and share_desktop instead)."
   }
 }
 
@@ -188,33 +232,13 @@ data "coder_parameter" "agent_relay_cursor_repo_url" {
   })
 }
 
-data "coder_parameter" "agent_relay_credential" {
-  name         = "agent_relay_credential"
-  display_name = "Agent Relay credential"
-  description  = "Short-lived Cursor worker token, scoped to the user who requested the agent, that the worker authenticates with. Agent Relay mints it from the pool's service account key when it dispatches the workspace; a human never fills it in. Ephemeral: it expires an hour after minting and is not reused on a later build."
-  type         = "string"
-  ephemeral    = true
-  mutable      = true
-  default      = ""
-  order        = 1006
-  styling = jsonencode({
-    disabled    = true
-    mask_input  = true
-    placeholder = "Set by Agent Relay on dispatch"
-  })
-}
-
 # CURSOR_AGENT_WORKER_ID is the Cursor CLI's contract; do not rename it.
-# The worker token has no CLI env var (only the --auth-token flag), so it
-# travels under an Agent Relay name and the script passes it on the
-# command line. It is never CURSOR_API_KEY: the CLI would treat the
-# token as a service account key and reject it.
-resource "coder_env" "agent_relay_cursor_token" {
-  agent_id = var.agent_id
-  name     = "AGENT_RELAY_CURSOR_TOKEN"
-  value    = data.coder_parameter.agent_relay_credential.value
-}
-
+# The session token has no CLI env var. Agent Relay delivers it as the
+# AGENT_RELAY_CURSOR_TOKEN workspace secret, which the agent injects,
+# and the start script writes it to a file for --auth-token-file; a
+# coder_env of the same name would be overridden by the secret. It is
+# never CURSOR_API_KEY: the CLI would treat the token as a service
+# account key and reject it.
 resource "coder_env" "cursor_agent_worker_id" {
   agent_id = var.agent_id
   name     = "CURSOR_AGENT_WORKER_ID"
@@ -242,6 +266,26 @@ locals {
   # tree so one directory holds everything a debugger needs.
   module_directory = "$HOME/.coder-modules/coder/agent-relay-cursor"
 
+  # A wildcard bind is reached over loopback from inside the workspace.
+  management_host = var.management_addr == "" ? "" : regex("^(.*):[0-9]+$", var.management_addr)[0]
+  management_port = var.management_addr == "" ? "" : regex(":([0-9]+)$", var.management_addr)[0]
+  management_url = var.management_addr == "" ? "" : format("http://%s:%s",
+    contains(["", "0.0.0.0"], local.management_host) ? "127.0.0.1" : (local.management_host == "[::]" ? "[::1]" : local.management_host),
+    local.management_port,
+  )
+
+  cleanup_script = templatefile("${path.module}/cleanup.sh.tftpl", {
+    module_directory = local.module_directory
+    state_file       = var.state_file
+    stop_mode        = false
+  })
+
+  stop_script = templatefile("${path.module}/cleanup.sh.tftpl", {
+    module_directory = local.module_directory
+    state_file       = var.state_file
+    stop_mode        = true
+  })
+
   install_script = templatefile("${path.module}/install.sh.tftpl", {
     cli_binary  = var.cli_binary
     install_cli = var.install_cli
@@ -253,8 +297,10 @@ locals {
     install_cli      = var.install_cli
     computer_use     = var.computer_use
     share_desktop    = var.share_desktop
+    management_addr  = var.management_addr
     state_file       = var.state_file
     log_file         = var.log_file
+    additional_args  = base64encode(join("\n", var.additional_args))
   })
 }
 
@@ -266,8 +312,18 @@ module "coder_utils" {
   module_directory    = local.module_directory
   display_name_prefix = "Cursor worker"
   icon                = "/icon/cursor.svg"
+  pre_install_script  = local.cleanup_script
   install_script      = local.install_script
   start_script        = local.start_script
+}
+
+resource "coder_script" "stop_worker" {
+  agent_id     = var.agent_id
+  display_name = "Cursor worker: Stop Script"
+  icon         = "/icon/cursor.svg"
+  run_on_stop  = true
+  timeout      = 20
+  script       = local.stop_script
 }
 
 # The coder provider has no standalone agent-metadata resource: the
@@ -284,14 +340,28 @@ output "status_metadata_script" {
   })
 }
 
+output "session_attached_metadata_script" {
+  description = "Script body for the agent_relay_session_attached agent metadata item. Prints attached, unattached, stopped, or disabled; see README. Fails when a running worker's management server cannot be read, so an unknown sample is an error."
+  value = templatefile("${path.module}/session_attached.sh.tftpl", {
+    cli_binary     = var.cli_binary
+    state_file     = var.state_file
+    management_url = local.management_url
+  })
+}
+
+output "management_url" {
+  description = "URL that reaches the worker's /healthz, /readyz, and /metrics server from inside the workspace, or empty when management_addr is empty."
+  value       = local.management_url
+}
+
 output "scripts" {
   description = "Ordered list of coder exp sync names produced by this module, in run order. A template can `coder exp sync want <self> <these>` to run its own scripts after the runner is up."
   value       = module.coder_utils.scripts
 }
 
 output "dispatched" {
-  description = "Whether this workspace was spawned by Agent Relay (credential set) or manually (empty)."
-  value       = data.coder_parameter.agent_relay_credential.value != ""
+  description = "Whether Agent Relay created this workspace. Stays true on every later build of it, including one a person restarts; whether the current build has a worker token is decided by the start script, not here."
+  value       = data.coder_parameter.agent_relay_delivery_id.value != ""
 }
 
 output "session_id" {
