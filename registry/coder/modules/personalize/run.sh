@@ -45,7 +45,8 @@ run_script() {
 }
 
 collect_drop_in_scripts() {
-  # Bash restores the caller's locale when this function returns.
+  # The C locale sorts the glob in byte order. Bash restores the caller's
+  # locale when this function returns, so user scripts never see it.
   local LC_ALL=C
   DROP_IN_SCRIPTS=("$DROP_IN_DIR/"*)
 }
