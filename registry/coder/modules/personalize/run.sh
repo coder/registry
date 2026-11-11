@@ -22,22 +22,34 @@ DROP_IN_DIR="$PERSONALIZE_SCRIPT.d"
 MODULE_DIR="$HOME/.coder-modules/coder/personalize"
 CONFIG_FILE="$MODULE_DIR/config"
 
+# Prints NAME='VALUE' with each ' in VALUE written as '\''. sed runs with
+# LC_ALL=C because in a UTF-8 locale busybox sed does not match a quote that
+# follows an invalid byte.
 write_value() {
-  printf "%s='" "$1" \
-    && printf '%s' "$2" | LC_ALL=C sed "s/'/'\\\\''/g" \
-    && printf "'\n"
+  printf "%s='" "$1" || return
+  printf '%s' "$2" | LC_ALL=C sed "s/'/'\\\\''/g" || return
+  printf "'\n"
 }
 
+# Writes the config file to a temporary file in the same directory and renames
+# it, so that readers see either the previous file or the complete new one.
+# Runs in a subshell so that the EXIT trap removes the temporary file when a
+# step fails.
 write_config() (
   mkdir -p "$MODULE_DIR" || exit 1
-  [ ! -d "$CONFIG_FILE" ] || exit 1
+
+  # mv would move the temporary file into a directory at the config path.
+  if [ -d "$CONFIG_FILE" ]; then
+    exit 1
+  fi
+
   TEMP_CONFIG=$(mktemp "$MODULE_DIR/config.XXXXXX") || exit 1
   trap 'rm -f "$TEMP_CONFIG"' EXIT
-  {
-    write_value PERSONALIZE_PATH "$PERSONALIZE_SCRIPT" \
-      && write_value PERSONALIZE_DIR "$DROP_IN_DIR" \
-      && write_value PERSONALIZE_LOG_DIR "$MODULE_DIR/logs"
-  } > "$TEMP_CONFIG" || exit 1
+
+  write_value PERSONALIZE_PATH "$PERSONALIZE_SCRIPT" > "$TEMP_CONFIG" || exit 1
+  write_value PERSONALIZE_DIR "$DROP_IN_DIR" >> "$TEMP_CONFIG" || exit 1
+  write_value PERSONALIZE_LOG_DIR "$MODULE_DIR/logs" >> "$TEMP_CONFIG" || exit 1
+
   mv "$TEMP_CONFIG" "$CONFIG_FILE"
 )
 
