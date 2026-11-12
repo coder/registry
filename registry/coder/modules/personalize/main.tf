@@ -67,7 +67,7 @@ resource "coder_script" "personalize_stop" {
 }
 
 # These variables tell the developer's own tooling, such as a dotfiles install
-# script, where Personalize looks for scripts and writes logs.
+# script, where this template's Personalize looks for scripts.
 resource "coder_env" "path" {
   agent_id = var.agent_id
   name     = "CODER_MODULE_PERSONALIZE_PATH"
@@ -78,10 +78,4 @@ resource "coder_env" "dir" {
   agent_id = var.agent_id
   name     = "CODER_MODULE_PERSONALIZE_DIR"
   value    = "${local.exported_path}.d"
-}
-
-resource "coder_env" "log_dir" {
-  agent_id = var.agent_id
-  name     = "CODER_MODULE_PERSONALIZE_LOG_DIR"
-  value    = local.log_dir
 }

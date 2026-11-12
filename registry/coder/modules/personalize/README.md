@@ -76,11 +76,10 @@ With the Docker example template, short stop scripts ran to completion in testin
 
 The agent sets these variables in the environment of every process it starts, including SSH sessions and other startup scripts:
 
-| Variable                           | Default value                             |
-| ---------------------------------- | ----------------------------------------- |
-| `CODER_MODULE_PERSONALIZE_PATH`    | `~/personalize`                           |
-| `CODER_MODULE_PERSONALIZE_DIR`     | `~/personalize.d`                         |
-| `CODER_MODULE_PERSONALIZE_LOG_DIR` | `~/.coder-modules/coder/personalize/logs` |
+| Variable                        | Default value     |
+| ------------------------------- | ----------------- |
+| `CODER_MODULE_PERSONALIZE_PATH` | `~/personalize`   |
+| `CODER_MODULE_PERSONALIZE_DIR`  | `~/personalize.d` |
 
 A leading `~/` is replaced with the home directory, so the default values are absolute paths. A dotfiles install script can use them to put its files where this template's Personalize looks for them:
 
@@ -91,7 +90,7 @@ if [ -n "${CODER_MODULE_PERSONALIZE_DIR:-}" ]; then
 fi
 ```
 
-Script output goes to `start.log` and `stop.log` in the log directory, and to the Personalize tabs of the agent logs. At every start, the output begins with a short description of the two paths and a link to this page, so a developer can tell from inside the workspace that Personalize is present and how to use it.
+Script output goes to `start.log` and `stop.log` in `~/.coder-modules/coder/personalize/logs/`, and to the Personalize tabs of the agent logs. At every start, the output begins with a short description of the two paths and a link to this page, so a developer can tell from inside the workspace that Personalize is present and how to use it.
 
 ## Use a custom path
 
