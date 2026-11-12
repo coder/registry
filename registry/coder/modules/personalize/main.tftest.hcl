@@ -25,17 +25,20 @@ run "defaults" {
     condition = (
       coder_script.personalize.log_path == "$HOME/.coder-modules/coder/personalize/logs/start.log"
       && coder_script.personalize_stop.log_path == "$HOME/.coder-modules/coder/personalize/logs/stop.log"
+      && coder_env.log_dir.value == "$HOME/.coder-modules/coder/personalize/logs"
     )
-    error_message = "Both logs must use the module log directory."
+    error_message = "Both logs must use the exported module log directory."
   }
 
   assert {
     condition = (
-      coder_env.personalize_path[0].name == "PERSONALIZE_PATH"
-      && coder_env.personalize_path[0].value == "$HOME/personalize"
-      && coder_env.personalize_path[0].agent_id == var.agent_id
+      coder_env.path.name == "CODER_MODULE_PERSONALIZE_PATH"
+      && coder_env.path.value == "$HOME/personalize"
+      && coder_env.dir.name == "CODER_MODULE_PERSONALIZE_DIR"
+      && coder_env.dir.value == "$HOME/personalize.d"
+      && coder_env.log_dir.name == "CODER_MODULE_PERSONALIZE_LOG_DIR"
     )
-    error_message = "The default path must be exported with an agent-expandable HOME."
+    error_message = "The default paths must be exported with an agent-expandable HOME."
   }
 }
 
@@ -43,7 +46,7 @@ run "custom_path" {
   command = plan
 
   variables {
-    path = "/tmp/personalize scripts/'$(printf injected) [daily]*"
+    path = "/tmp/personalize scripts/'`printf injected` [daily]*"
   }
 
   assert {
@@ -57,9 +60,22 @@ run "custom_path" {
   }
 
   assert {
-    condition     = length(coder_env.personalize_path) == 0
-    error_message = "The agent must not expand dollar signs in the configured path."
+    condition = (
+      coder_env.path.value == var.path
+      && coder_env.dir.value == "${var.path}.d"
+    )
+    error_message = "A path outside the home directory must be exported unchanged."
   }
+}
+
+run "reject_dollar_sign" {
+  command = plan
+
+  variables {
+    path = "/tmp/$(printf injected)/personalize"
+  }
+
+  expect_failures = [var.path]
 }
 
 run "reject_newline" {

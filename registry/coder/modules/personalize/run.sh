@@ -3,7 +3,6 @@
 # Terraform renders this file with templatefile(). ACTION and PERSONALIZE_PATH
 # are template values, and each braced shell expansion is written $${NAME}.
 
-BOLD='\033[0;1m'
 CODE='\033[36;40;1m'
 RESET='\033[0m'
 # shellcheck disable=SC2016 # Terraform replaces this placeholder.
@@ -20,18 +19,7 @@ esac
 
 ACTION="${ACTION}"
 DROP_IN_DIR="$PERSONALIZE_SCRIPT.d"
-MODULE_DIR="$HOME/.coder-modules/coder/personalize"
 EXIT_STATUS=0
-
-write_config() (
-  mkdir -p "$MODULE_DIR" || exit 1
-  TEMP_CONFIG=$(mktemp "$MODULE_DIR/config.XXXXXX") || exit 1
-  # Rename a complete file; remove the temporary file if writing fails.
-  trap 'rm -f "$TEMP_CONFIG"' EXIT
-  printf 'PERSONALIZE_PATH=%q\nPERSONALIZE_DIR=%q\nPERSONALIZE_LOG_DIR=%q\n' \
-    "$PERSONALIZE_SCRIPT" "$DROP_IN_DIR" "$MODULE_DIR/logs" > "$TEMP_CONFIG" || exit 1
-  mv "$TEMP_CONFIG" "$MODULE_DIR/config"
-)
 
 run_script() {
   local SCRIPT_EXIT_CODE=0
@@ -64,20 +52,16 @@ run_drop_in_script() {
 }
 
 if [[ "$ACTION" = start ]]; then
-  if ! write_config; then
-    printf 'Warning: failed to write personalize config file %s/config.\n' "$MODULE_DIR" >&2
-  fi
+  printf 'Personalize runs your scripts when this workspace starts and stops:\n'
+  printf '  %b%s%b runs at start.\n' "$CODE" "$DISPLAY_PATH" "$RESET"
+  printf '  Executable files in %b%s.d%b run with "start" at start, and with "stop" at stop in reverse order.\n' "$CODE" "$DISPLAY_PATH" "$RESET"
+  printf 'Docs: https://registry.coder.com/modules/coder/personalize\n\n'
 
   if [[ -f "$PERSONALIZE_SCRIPT" && -x "$PERSONALIZE_SCRIPT" ]]; then
     run_script "$PERSONALIZE_SCRIPT"
   elif [[ -f "$PERSONALIZE_SCRIPT" ]]; then
     echo "🔐 Your personalize script isn't executable!"
     printf 'Make %b%s%b executable before restarting the workspace.\n' "$CODE" "$DISPLAY_PATH" "$RESET"
-  elif [[ ! -e "$DROP_IN_DIR" ]]; then
-    printf "✨ %bYou don't have a personalize script!\n\n" "$BOLD"
-    printf 'Create a script at %b%s%b and make it executable.\n' "$CODE" "$DISPLAY_PATH" "$RESET"
-    printf 'It will run every time your workspace starts. Use it to install personal packages!\n\n'
-    printf 'Add executable drop-in scripts to %b%s.d%b; find the module configuration at %s/config.\n' "$CODE" "$DISPLAY_PATH" "$RESET" "$MODULE_DIR"
   fi
 fi
 
