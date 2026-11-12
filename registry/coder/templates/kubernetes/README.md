@@ -31,6 +31,10 @@ Some options to consider:
 
 More language-specific images (Go, Java, Node.js, and more) are available in [coder/images](https://github.com/coder/images), and the [devcontainers/images](https://github.com/devcontainers/images) collection is another good source of ready-made development images. You can also build your own image to pre-bake the exact tools your team needs. See [Coder's image management docs](https://coder.com/docs/admin/templates/managing-templates/image-management) for additional guidance.
 
+### Container runtime
+
+Set the `runtime` variable to `sysbox-runc` to run workspaces with [Sysbox](https://github.com/nestybox/sysbox), which lets workspaces run Docker, systemd, and other system software without privileged containers. This requires Sysbox to be installed on the cluster nodes along with a `sysbox-runc` RuntimeClass, see the [Sysbox Kubernetes installation guide](https://github.com/nestybox/sysbox/blob/master/docs/user-guide/install-k8s.md). Leave it unset to use the default runtime of the cluster.
+
 ### Authentication
 
 This template authenticates using a `~/.kube/config`, if present on the server, or via built-in authentication if the Coder provisioner is running on Kubernetes with an authorized ServiceAccount. To use another [authentication method](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs#authentication), edit the template.

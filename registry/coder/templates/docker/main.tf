@@ -29,6 +29,20 @@ variable "image" {
   default     = "codercom/example-base:ubuntu"
 }
 
+variable "runtime" {
+  description = <<-EOF
+  Container runtime for workspaces. Leave unset to use the default runtime of
+  the Docker daemon, or set to "sysbox-runc" to use Sysbox (sysbox-runc must be
+  installed on the Docker host).
+  EOF
+  type        = string
+  default     = null
+  validation {
+    condition     = var.runtime == null ? true : contains(["sysbox-runc"], var.runtime)
+    error_message = "The runtime must be null (default) or \"sysbox-runc\"."
+  }
+}
+
 provider "docker" {
   # Defaulting to null if the variable is an empty string lets us have an optional variable without having to set our own default
   host = var.docker_socket != "" ? var.docker_socket : null
@@ -184,6 +198,7 @@ resource "docker_container" "workspace" {
   name = "coder-${data.coder_workspace_owner.me.name}-${lower(data.coder_workspace.me.name)}"
   # Hostname makes the shell more user friendly: coder@my-workspace:~$
   hostname = data.coder_workspace.me.name
+  runtime  = var.runtime
   # Use the docker gateway if the access URL is 127.0.0.1
   entrypoint = ["sh", "-c", replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")]
   env        = ["CODER_AGENT_TOKEN=${coder_agent.main.token}"]

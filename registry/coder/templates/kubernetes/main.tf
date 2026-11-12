@@ -41,6 +41,20 @@ variable "image" {
   default     = "codercom/example-base:ubuntu"
 }
 
+variable "runtime" {
+  description = <<-EOF
+  Container runtime for workspaces. Leave unset to use the default runtime of
+  the cluster, or set to "sysbox-runc" to use Sysbox (requires the "sysbox-runc"
+  RuntimeClass, see https://github.com/nestybox/sysbox).
+  EOF
+  type        = string
+  default     = null
+  validation {
+    condition     = var.runtime == null ? true : contains(["sysbox-runc"], var.runtime)
+    error_message = "The runtime must be null (default) or \"sysbox-runc\"."
+  }
+}
+
 data "coder_parameter" "cpu" {
   name         = "cpu"
   display_name = "CPU"
@@ -285,8 +299,14 @@ resource "kubernetes_deployment_v1" "main" {
           "com.coder.user.id"          = data.coder_workspace_owner.me.id
           "com.coder.user.username"    = data.coder_workspace_owner.me.name
         }
+        # Sysbox needs a user namespace for the pod (CRI-O only).
+        annotations = var.runtime == "sysbox-runc" ? {
+          "io.kubernetes.cri-o.userns-mode" = "auto:size=65536"
+        } : {}
       }
       spec {
+        runtime_class_name = var.runtime
+
         security_context {
           run_as_user     = 1000
           fs_group        = 1000

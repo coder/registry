@@ -27,6 +27,10 @@ Some options to consider:
 
 More language-specific images (Go, Java, Node.js, and more) are available in [coder/images](https://github.com/coder/images), and the [devcontainers/images](https://github.com/devcontainers/images) collection is another good source of ready-made development images. You can also build your own image to pre-bake the exact tools your team needs. See [Coder's image management docs](https://coder.com/docs/admin/templates/managing-templates/image-management) for additional guidance.
 
+### Container runtime
+
+Set the `runtime` variable to `sysbox-runc` to run workspaces with [Sysbox](https://github.com/nestybox/sysbox), which lets workspaces run Docker, systemd, and other system software without privileged containers. Sysbox must be installed on the Docker host. Leave it unset to use the default runtime of the Docker daemon.
+
 ### Infrastructure
 
 #### Running Coder inside Docker
