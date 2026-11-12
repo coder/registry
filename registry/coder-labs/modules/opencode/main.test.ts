@@ -475,6 +475,29 @@ describe("opencode", async () => {
     expect(log).not.toContain(secret);
   });
 
+  test("auth-json-rotation-fails-when-logout-fails", async () => {
+    const { id, coderEnvVars, scripts } = await setup({
+      moduleVariables: {
+        auth_json: JSON.stringify([
+          credential("coder-anthropic", "anthropic", "new-key"),
+        ]),
+      },
+    });
+    await seedFile(
+      id,
+      credentialStore,
+      JSON.stringify([credential("coder-anthropic", "anthropic", "old-key")]),
+    );
+    await execContainer(id, ["touch", "/tmp/opencode-mock-fail-logout"]);
+    const resp = await runScript(id, "install", scripts.install, coderEnvVars);
+    expect(resp.exitCode).not.toBe(0);
+    const log = await installLog(id);
+    expect(log).toContain(
+      "could not replace OpenCode credential 'coder-anthropic'",
+    );
+    expect(log).not.toContain("OpenCode credentials imported.");
+  });
+
   test("no-auth-json-skips-import", async () => {
     const { id, scripts } = await setup();
     await runScripts(id, scripts);

@@ -27,6 +27,7 @@ case "$1 ${2:-}" in
     ;;
   "auth logout")
     echo "auth logout $3 $4" >> /tmp/opencode-mock-calls
+    [[ -f /tmp/opencode-mock-fail-logout ]] && exit 1
     jq --arg id "$4" 'map(select(.id != $id))' "${store}" > "${store}.tmp"
     mv "${store}.tmp" "${store}"
     ;;

@@ -191,11 +191,20 @@ setup_auth() {
 
   require_jq "import OpenCode credentials"
 
-  local existing_ids integration credential_id
-  existing_ids=$(opencode auth export --standalone 2> /dev/null | jq -r '.[].id' 2> /dev/null || true)
+  local exported existing_ids integration credential_id
+  # Failing here matters: import skips ids that already exist, so a credential
+  # that was not logged out would silently keep its old value.
+  if ! exported=$(opencode auth export --standalone < /dev/null 2> /dev/null) \
+    || ! existing_ids=$(jq -r '.[].id' <<< "$${exported}" 2> /dev/null); then
+    echo "ERROR: could not read existing OpenCode credentials." >&2
+    exit 1
+  fi
   while IFS=$'\t' read -r integration credential_id; do
     if [ -n "$${credential_id}" ] && grep -qxF "$${credential_id}" <<< "$${existing_ids}"; then
-      opencode auth logout --standalone "$${integration}" "$${credential_id}" < /dev/null > /dev/null 2>&1 || true
+      if ! opencode auth logout --standalone "$${integration}" "$${credential_id}" < /dev/null > /dev/null 2>&1; then
+        echo "ERROR: could not replace OpenCode credential '$${credential_id}'." >&2
+        exit 1
+      fi
     fi
   done < <(jq -rn 'env.CODER_OPENCODE_AUTH_JSON | fromjson | .[] | [.integrationID, .id] | @tsv')
 
