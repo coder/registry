@@ -15,9 +15,7 @@ exits, Agent Relay deletes the workspace.
 
 ## Prerequisites
 
-- Coder 2.39.0 or newer, and Agent Relay v0.14.0 or newer, which the 1.x
-  runner modules require. On older versions, pin `agent-relay-claude-code` to
-  `0.4.0` and `agent-relay-cursor` to `0.7.0`.
+- Coder 2.39.0 or newer and Agent Relay v0.16.0 or newer.
 - A Docker host the provisioner can reach. The
   [Docker Containers](../docker/README.md) template covers giving Coder access
   to the Docker socket.
@@ -71,9 +69,13 @@ the `Workspace setup` script. Add any further setup that sessions depend on to
 the rule's `after` list, as a `coder_script` resource or a module;
 `coder_agent.startup_script` cannot be ordered.
 
-If a setup step fails, Coder skips the runner and Agent Relay fails the
-session, about a minute later on Agent Relay v0.16.0 or newer. Set
-`requires = "completion"` on the rule to start the runner anyway.
+If a setup step fails, Coder skips the runner. On a new build, Agent Relay
+reports the failure about a minute later: it fails a Cursor session, and
+rebuilds a Claude Code session once before failing it. If setup fails while a
+session claims a prebuild, the workspace stays `idle` and Agent Relay does not
+report it. Set `requires = "completion"` on the rule to start the runner
+anyway. See
+[Start the worker after workspace setup](https://coder.com/docs/ai-coder/agent-relay/setup#start-the-worker-after-workspace-setup).
 
 ## Repository-scoped Cursor pools
 
@@ -129,6 +131,10 @@ reference image that carries both CLIs, rebuilt weekly. Fork it and add your
 own tooling. With another image, each module downloads its CLI at start when
 it is not on `PATH`, which counts against the start deadline; bake the CLIs in
 and set `install_cli = false` instead.
+
+Each build looks up the tag's digest in the registry and pulls again when it
+has moved, so the provisioner must reach the registry. A private image needs
+`registry_auth` on the `docker` provider.
 
 ## Source control
 

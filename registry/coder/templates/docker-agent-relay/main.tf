@@ -234,8 +234,8 @@ resource "coder_agent" "main" {
   }
 }
 
-# 1.x takes the work order as an ephemeral workspace secret and needs Coder
-# 2.39.0 and Agent Relay v0.14.0 or newer. On older deployments, pin 0.4.0.
+# 1.x takes the work order as an ephemeral workspace secret. This template
+# needs Coder 2.39.0 and Agent Relay v0.16.0 or newer.
 # https://registry.coder.com/modules/coder/agent-relay-claude-code
 module "claude_code_runner" {
   count    = local.self_hosted_provider == "claude" ? 1 : 0
@@ -246,8 +246,7 @@ module "claude_code_runner" {
   # With an image that bakes it in, set false so a missing CLI fails fast.
 }
 
-# Same 1.x requirements as the Claude Code module. On older deployments, pin
-# 0.7.0.
+# 1.x takes the worker token as an ephemeral workspace secret.
 # https://registry.coder.com/modules/coder/agent-relay-cursor
 module "cursor_worker" {
   count    = local.self_hosted_provider == "cursor" ? 1 : 0
@@ -277,8 +276,8 @@ resource "coder_env" "setup_repo_url" {
 }
 
 # Clones a repo-scoped Cursor pool's repository and exits 0 on every other
-# build. A failed clone skips the worker, so Agent Relay fails the session
-# instead of serving it without a repository.
+# build. A failed clone keeps the worker from starting, so no session is served
+# without its repository.
 resource "coder_script" "setup" {
   count        = data.coder_workspace.me.start_count
   agent_id     = coder_agent.main.id
@@ -308,8 +307,8 @@ resource "coder_script" "setup" {
   EOT
 }
 
-# Starts the runner after git-config and setup succeed. A failed step skips the
-# runner and Agent Relay fails the session, about a minute later from v0.16.0.
+# Starts the runner after git-config and setup succeed; a failed step skips it.
+# The README covers how Agent Relay reports that.
 # A module with count = 0 selects nothing, so one rule serves both providers.
 # Coder checks the selectors on push, not terraform validate; Coder older than
 # 2.39.0 ignores the rule.
@@ -322,6 +321,21 @@ data "coder_script_order" "relay_runner" {
   }
 }
 
+# Docker pulls a tag only when it is missing locally, so resolve the tag's
+# digest on every build and pull again when it moves. With the hourly prebuild
+# expiry, new prebuilds pick up a moved tag; a claim made right after a move
+# replaces the container and starts cold. Workspaces share the image, so
+# keep_locally stops a destroyed workspace from deleting it.
+data "docker_registry_image" "workspace" {
+  name = var.image
+}
+
+resource "docker_image" "workspace" {
+  name          = var.image
+  pull_triggers = [data.docker_registry_image.workspace.sha256_digest]
+  keep_locally  = true
+}
+
 # One container per session, with no volume: Agent Relay deletes the workspace
 # when the runner exits.
 #
@@ -331,7 +345,7 @@ data "coder_script_order" "relay_runner" {
 # claim keeps. The agent token is reused across a claim, so env is stable too.
 resource "docker_container" "workspace" {
   count = data.coder_workspace.me.start_count
-  image = var.image
+  image = docker_image.workspace.image_id
   name  = "coder-${data.coder_workspace.me.id}"
   # Use the Docker gateway if the access URL is 127.0.0.1
   entrypoint = ["sh", "-c", replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")]
