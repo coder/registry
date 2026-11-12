@@ -297,13 +297,17 @@ export const runTerraformApply = async <TVars extends TerraformVariables>(
  * given directory.
  */
 export const runTerraformInit = async (dir: string) => {
-  const proc = spawn([terraformBinary(), "init"], {
+  const proc = spawn([terraformBinary(), "init", "-input=false", "-no-color"], {
     cwd: dir,
+    stdout: "pipe",
+    stderr: "pipe",
   });
-  const text = await readableStreamToText(proc.stdout);
-  const exitCode = await proc.exited;
-  if (exitCode !== 0) {
-    throw new Error(text);
+  const [stdout, stderr] = await Promise.all([
+    readableStreamToText(proc.stdout),
+    readableStreamToText(proc.stderr),
+  ]);
+  if ((await proc.exited) !== 0) {
+    throw new Error(`${stdout}\n${stderr}`);
   }
 };
 

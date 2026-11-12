@@ -16,7 +16,7 @@ parameters the relay stamps on each build and runs the Cursor CLI worker.
 ```tf
 module "cursor_worker" {
   source   = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
 
   # Downloads the Cursor CLI at start when it is not in the image. Bake
@@ -61,7 +61,7 @@ created.
 
 ## Requirements
 
-- Coder 2.39.0 or newer and Agent Relay v0.14.0 or newer. On those versions
+- Coder 2.39.0 or newer and Agent Relay 0.14.0 or newer. On those versions
   the relay delivers the worker token as an ephemeral workspace secret, which
   the agent injects as `AGENT_RELAY_CURSOR_TOKEN`; it is never a build
   parameter. A relay that still sends it as the `agent_relay_credential`
@@ -76,7 +76,9 @@ created.
   `true`) downloads it at start only when it is not already on PATH; bake it
   into the image for the fastest start. `cli_binary` overrides the path.
 - Repo-scoped pools: the template must clone `agent_relay_cursor_repo_url` and
-  provide SCM credentials before this module's script runs.
+  provide SCM credentials before this module's script runs. Order this
+  module's scripts after the clone; see
+  [Start the worker after your setup](#start-the-worker-after-your-setup).
 - `computer_use = true` needs the computer-use packages in the image.
   `share_desktop = true` (requires `computer_use`) lets people watch or take
   control of the agent's desktop from the Desktop tab in Cursor. It needs
@@ -86,6 +88,69 @@ created.
   the image to check.
 - Builds must finish inside the pool's `dispatch_deadline` (default 10m, max
   15m): pre-pulled images, no persistent volumes.
+
+## Start the worker after your setup
+
+The start step runs as one of the agent's start scripts. Without an
+ordering rule, every start script runs at once, so the worker can take
+a session while your template is still cloning a repository or installing
+tools. The module cannot wait for the agent to be `ready`: its own start
+script is one of the scripts the agent waits on.
+
+Order the module after your setup in the template, with a
+`coder_script_order` rule. The module cannot declare this rule for you,
+because a rule can only select scripts in its own module, so it lives
+beside the module call:
+
+```tf
+resource "coder_script" "setup" {
+  agent_id     = coder_agent.main.id
+  display_name = "Workspace setup"
+  run_on_start = true
+  timeout      = 300
+  script       = file("${path.module}/setup.sh")
+}
+
+data "coder_script_order" "relay_worker" {
+  rule {
+    phase = "start"
+    run   = ["module.cursor_worker"]
+    after = ["coder_script.setup"]
+  }
+}
+```
+
+- Script ordering needs Coder 2.39.0 or newer on the control plane, the
+  provisioners and the workspace agents, and the Coder provider 2.20.0 or
+  newer. Older Coder ignores the rule without an error and the worker
+  starts right away.
+- `coder_agent.startup_script` cannot be ordered. Put setup the worker
+  depends on in `coder_script` resources or modules, including a step that
+  installs the CLI (set `install_cli = false` and order the module after it).
+- With the default `requires = "success"`, a setup script that fails or
+  times out skips this module and the worker never starts. Agent Relay newer than 0.15.0
+  fails the session about a minute after the agent reports the failure;
+  0.15.0 and older wait out the startup grace and then report that the
+  worker never started. Set `requires = "completion"` to start the worker
+  anyway.
+- While the rule holds the start step, `agent_relay_status` reads `pending`.
+  Agent Relay's startup grace (`--reap-startup-grace`, default 15 minutes)
+  is measured from the build's creation, so the build and setup together
+  must finish within it. Past it, Agent Relay deletes the workspace and
+  reports that the worker never started.
+- Setup runs again when a prebuilt workspace is claimed, and the rule holds
+  the worker until it finishes. Write setup so it skips work already done,
+  for example `test -d ~/repo/.git || git clone ...`. A repo-scoped pool
+  cannot clone at prebuild time, because the repository URL arrives with
+  the session. Until setup finishes, `agent_relay_status` still shows the
+  prebuild's `idle`, not `pending`, and a setup that fails on a claim
+  leaves it at `idle`, which Agent Relay neither reaps nor reports.
+- A `cli_binary` wrapper that waits for setup is not needed and is a trap:
+  the status script recognizes the worker by the binary's basename, so a
+  wrapper not named `agent` reads as `orphaned`.
+
+The full walkthrough is in the Agent Relay docs under
+[Start the worker after workspace setup](https://coder.com/docs/ai-coder/agent-relay/setup#start-the-worker-after-workspace-setup).
 
 ## Worker credential
 
@@ -118,7 +183,7 @@ optional value an explicit one (`--flag=value`), or it consumes `start`.
 ```tf
 module "cursor_worker" {
   source          = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version         = "1.0.0"
+  version         = "1.0.1"
   agent_id        = coder_agent.main.id
   additional_args = ["--some-flag", "value", "--some-flag", "another value", "--another-flag"]
 }
@@ -243,7 +308,7 @@ scrape the worker, and never publish it through a `coder_app`.
 ```tf
 module "cursor_worker" {
   source          = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version         = "1.0.0"
+  version         = "1.0.1"
   agent_id        = coder_agent.main.id
   management_addr = "127.0.0.1:3290"
 }
