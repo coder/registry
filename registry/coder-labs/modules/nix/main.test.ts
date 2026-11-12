@@ -266,6 +266,9 @@ stat -c '%U:%a' "$RUNTIME_DIR"
       expect(firstBoot).toContain(`Flake URI: file://${remote}?ref=main#host`);
       expect(firstBoot).toContain("Switch complete");
       expect(firstBoot).toContain("main agent started");
+      const rebuildStatus = () =>
+        readFile(path.join(env.STATE_DIR, "rebuild.status"), "utf8");
+      expect(await rebuildStatus()).toBe("ok\n");
       expect(
         await readFile(
           path.join(checkout, "hardware-configuration.nix"),
@@ -318,6 +321,7 @@ stat -c '%U:%a' "$RUNTIME_DIR"
       );
       expect(failedBoot).toContain("the main agent stays stopped");
       expect(failedBoot).not.toContain("main agent started");
+      expect(await rebuildStatus()).toBe("failed (exit 1)\n");
       expect(await readFile(path.join(checkout, "secret"), "utf8")).toBe(
         "keep-secret\n",
       );

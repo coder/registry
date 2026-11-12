@@ -44,6 +44,7 @@ locals {
   flake_branch = try(regex("[?&]ref=([^&#]+)", var.nixos.flake_ref)[0], "")
   nixos_count  = var.nixos.enabled ? data.coder_workspace.me.start_count : 0
   start_agent  = "${var.nixos.runtime_dir}/start-agent.sh"
+  state_dir    = "/var/lib/coder-nixos"
 
   rebuild_script = templatefile("${path.module}/scripts/nixos/rebuild.sh.tftpl", {
     ARG_FLAKE_URL    = local.flake_url
@@ -92,7 +93,7 @@ resource "coder_agent" "builder" {
     display_name = "Applied revision"
     interval     = 60
     timeout      = 5
-    script       = "cut -c1-12 /var/lib/coder-nixos/flake.rev 2>/dev/null || echo none"
+    script       = "cut -c1-12 ${local.state_dir}/flake.rev 2>/dev/null || echo none"
   }
   metadata {
     key          = "build_log"
@@ -100,6 +101,14 @@ resource "coder_agent" "builder" {
     interval     = 60
     timeout      = 5
     script       = "readlink -e ${var.nixos.log_dir}/rebuild-latest.log || echo ${var.nixos.log_dir}"
+  }
+  # The dashboard sorts metadata by key; this one comes last.
+  metadata {
+    key          = "status"
+    display_name = "Rebuild status"
+    interval     = 10
+    timeout      = 5
+    script       = "cat ${local.state_dir}/rebuild.status 2>/dev/null || echo unknown"
   }
 }
 
@@ -115,16 +124,26 @@ resource "coder_script" "nixos_rebuild" {
   script = <<-EOT
     #!/usr/bin/env bash
     set -euo pipefail
-    if ! bash -c "$(base64 -d <<< '${base64encode(local.rebuild_script)}')" 2>&1 |
+    status="$${STATE_DIR:-${local.state_dir}}/rebuild.status"
+    mkdir -p "$(dirname "$status")"
+    echo running >"$status"
+    rc=0
+    bash -c "$(base64 -d <<< '${base64encode(local.rebuild_script)}')" 2>&1 |
       LC_ALL=C awk -v max=524288 '
         { n += length($0) + 1 }
         n <= max { print; fflush(); next }
         !cut { cut = 1; print "Log output exceeds 512 KiB; the rest is in ${var.nixos.log_dir}/rebuild-latest.log"; fflush() }
-      '; then
+      ' || rc=$?
+    if [ "$rc" -ne 0 ]; then
+      echo "failed (exit $rc)" >"$status"
       echo "The rebuild failed; the main agent stays stopped. Fix the flake, then run 'systemctl restart coder-builder' from this agent or restart the workspace." >&2
+      exit "$rc"
+    fi
+    if ! ${local.start_agent}; then
+      echo "ok; main agent did not start" >"$status"
       exit 1
     fi
-    ${local.start_agent}
+    echo ok >"$status"
   EOT
 }
 
