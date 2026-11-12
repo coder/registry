@@ -83,14 +83,18 @@ data "coder_workspace_owner" "me" {}
 # template serves both providers. Only the selected runner module is
 # instantiated, which keeps the other module's parameters off the build.
 #
-# No default, so the parameter is required: Agent Relay marks a pool that does
-# not set it degraded, instead of building the wrong runner. The presets and
-# the workspace form supply a value everywhere else.
+# The default keeps the parameter optional. Coder's dynamic parameter
+# evaluation, which Agent Relay uses to check each pool, cannot expand the
+# modules' count without a value, so a required parameter would instantiate
+# both runner modules there and report their shared parameters as duplicates.
+# A Cursor pool that leaves it out is still degraded: it evaluates as Claude
+# Code, which lacks the Cursor parameters Agent Relay stamps.
 data "coder_parameter" "self_hosted_provider" {
   name         = "self_hosted_provider"
   display_name = "Self-hosted provider"
   description  = "Which Agent Relay runner this workspace serves. Agent Relay pools set this through template_parameters."
   type         = "string"
+  default      = "claude"
   mutable      = false
 
   option {
@@ -185,14 +189,8 @@ locals {
 
   # Indexed references keep the agent dependent on the output alone. A splat
   # would pull in the whole module, which depends on the agent.
-  #
-  # Coder evaluates the template without a self_hosted_provider value on
-  # import, so neither module exists and the last fallback applies. A build
-  # cannot reach it, because the parameter is required and limited to its
-  # options.
-  no_provider_script               = "echo 'self_hosted_provider is not set' >&2; exit 1"
-  status_metadata_script           = try(module.cursor_worker[0].status_metadata_script, module.claude_code_runner[0].status_metadata_script, local.no_provider_script)
-  session_attached_metadata_script = try(module.cursor_worker[0].session_attached_metadata_script, module.claude_code_runner[0].session_attached_metadata_script, local.no_provider_script)
+  status_metadata_script           = try(module.cursor_worker[0].status_metadata_script, module.claude_code_runner[0].status_metadata_script)
+  session_attached_metadata_script = try(module.cursor_worker[0].session_attached_metadata_script, module.claude_code_runner[0].session_attached_metadata_script)
 }
 
 # Lets a session clone and push over HTTPS with the workspace owner's GitHub

@@ -53,8 +53,9 @@ pool and a Cursor pool can share this template:
 { "template_parameters": { "self_hosted_provider": "cursor" } }
 ```
 
-The parameter has no default, so every pool must set it. Agent Relay marks a
-pool that leaves it out degraded rather than building the wrong runner.
+The parameter defaults to `claude`. A Cursor pool that leaves it out is marked
+degraded, because a Claude Code build lacks the parameters Agent Relay stamps
+for Cursor.
 
 The agent publishes the modules' `agent_relay_status` and
 `agent_relay_session_attached` metadata items. Agent Relay deletes the
