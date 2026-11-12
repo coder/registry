@@ -94,7 +94,7 @@ Script output goes to `start.log` and `stop.log` in `~/.coder-modules/coder/pers
 
 ## Use a custom path
 
-Set `path` to use a different personalize script. The drop-in directory is always `<path>.d`. The path cannot contain `$` or a newline.
+Set `path` to use a different personalize script. The drop-in directory is always `<path>.d`. The path cannot contain `$`, a newline, or a carriage return.
 
 ```tf
 module "personalize" {

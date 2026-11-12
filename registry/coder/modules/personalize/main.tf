@@ -31,8 +31,6 @@ variable "path" {
 }
 
 locals {
-  log_dir = "$HOME/.coder-modules/coder/personalize/logs"
-
   # The agent expands $HOME in environment values, but not a leading tilde.
   exported_path = (
     can(regex("^~/", var.path))
@@ -49,7 +47,7 @@ resource "coder_script" "personalize" {
   })
   display_name       = "Personalize"
   icon               = "/icon/personalize.svg"
-  log_path           = "${local.log_dir}/start.log"
+  log_path           = "$HOME/.coder-modules/coder/personalize/logs/start.log"
   run_on_start       = true
   start_blocks_login = true
 }
@@ -62,7 +60,7 @@ resource "coder_script" "personalize_stop" {
   })
   display_name = "Personalize (stop)"
   icon         = "/icon/personalize.svg"
-  log_path     = "${local.log_dir}/stop.log"
+  log_path     = "$HOME/.coder-modules/coder/personalize/logs/stop.log"
   run_on_stop  = true
 }
 
