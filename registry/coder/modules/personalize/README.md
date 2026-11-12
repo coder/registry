@@ -90,7 +90,7 @@ if [ -n "${CODER_MODULE_PERSONALIZE_DIR:-}" ]; then
 fi
 ```
 
-Script output goes to `start.log` and `stop.log` in `~/.coder-modules/coder/personalize/logs/`, and to the Personalize tabs of the agent logs. Each start replaces `start.log` and each stop replaces `stop.log`, so each file holds the output of the latest run. To keep older output, copy the files from a drop-in script.
+Script output goes to `start.log` and `stop.log` in `~/.coder-modules/coder/personalize/logs/`, and to the Personalize tabs of the agent logs. Each start replaces `start.log` and each stop replaces `stop.log`, so each file holds the output of the latest run.
 
 At every start, the output begins with a short description of the two paths and a link to this page, so a developer can tell from inside the workspace that Personalize is present and how to use it.
 
