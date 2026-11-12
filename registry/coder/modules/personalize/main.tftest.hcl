@@ -31,6 +31,16 @@ run "defaults" {
 
   assert {
     condition = (
+      strcontains(coder_script.personalize.script, coder_script.personalize.log_path)
+      && !strcontains(coder_script.personalize.script, coder_script.personalize_stop.log_path)
+      && strcontains(coder_script.personalize_stop.script, coder_script.personalize_stop.log_path)
+      && !strcontains(coder_script.personalize_stop.script, coder_script.personalize.log_path)
+    )
+    error_message = "Each script must empty its own log and leave the other one alone."
+  }
+
+  assert {
+    condition = (
       coder_env.path.name == "CODER_MODULE_PERSONALIZE_PATH"
       && coder_env.path.value == "$HOME/personalize"
       && coder_env.dir.name == "CODER_MODULE_PERSONALIZE_DIR"

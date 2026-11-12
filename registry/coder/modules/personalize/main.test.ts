@@ -43,14 +43,32 @@ const startHeader = (path: string) =>
     "Docs: https://registry.coder.com/modules/coder/personalize",
   ].join("\n");
 
+// Runs `script` the way the agent does when a script has a log path: output
+// goes to the log file, which is opened for writing without being emptied.
+// Prints the log file afterwards and keeps the script's exit code.
+const runThroughLogFileCommand = (script: string, logPath: string) => {
+  const encodedScript = Buffer.from(script).toString("base64");
+
+  return [
+    `script="$(printf '%s' '${encodedScript}' | base64 -d)"`,
+    `bash -c "$script" 1<> '${logPath}' 2>&1`,
+    "status=$?",
+    `cat '${logPath}'`,
+    'exit "$status"',
+  ].join("\n");
+};
+
 // Renders the module and runs `setup`, then the start or stop script, as root
-// in a fresh container. For start, it checks that the output begins with the
-// header and returns the output that follows it.
+// in a fresh container. With `logPath`, the script writes to that file as it
+// does under the agent, and the file's content is returned as the output. For
+// start, it checks that the output begins with the header and returns the
+// output that follows it.
 const runPersonalize = async ({
   phase = "start",
   path = "~/personalize",
   setup = "",
   environment = utf8Locale,
+  logPath = "",
 } = {}) => {
   const state = await runTerraformApply(import.meta.dir, {
     agent_id: "foo",
@@ -74,7 +92,9 @@ const runPersonalize = async ({
     const preparation = await runBash(setup);
     expect(preparation.exitCode, preparation.stderr).toBe(0);
 
-    const output = await runBash(script);
+    const output = await runBash(
+      logPath ? runThroughLogFileCommand(script, logPath) : script,
+    );
 
     let stdout = output.stdout.trim();
     if (phase === "start") {
@@ -101,6 +121,22 @@ describe("personalize", async () => {
       expect(output.exitCode).toBe(0);
       expect(output.stdout).toBe("");
       expect(output.stderr).toBe("");
+    }
+  });
+
+  it("replaces the log of an earlier, longer run at start and at stop", async () => {
+    for (const phase of ["start", "stop"]) {
+      const logPath = `/root/.coder-modules/coder/personalize/logs/${phase}.log`;
+      const setup = [
+        writeScriptCommand("/root/personalize.d/10-short", 'echo "short $1"'),
+        `mkdir -p "$(dirname '${logPath}')"`,
+        `printf 'output of a longer earlier run\\n%.0s' {1..100} > '${logPath}'`,
+      ].join("\n");
+
+      const output = await runPersonalize({ phase, setup, logPath });
+
+      expect(output.exitCode).toBe(0);
+      expect(output.stdout).toBe(`short ${phase}`);
     }
   });
 

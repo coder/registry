@@ -1,7 +1,16 @@
 #!/usr/bin/env bash
 
-# Terraform renders this file with templatefile(). ACTION and PERSONALIZE_PATH
-# are template values, and each braced shell expansion is written $${NAME}.
+# Terraform renders this file with templatefile(). ACTION, LOG_PATH and
+# PERSONALIZE_PATH are template values, and each braced shell expansion is
+# written $${NAME}.
+
+# The agent writes this script's output over the log file from its first byte
+# and never shortens the file, so a short run would leave the end of a longer,
+# older run behind. Emptying the file before any output keeps only this run.
+LOG_PATH="${LOG_PATH}"
+if [[ -f "$LOG_PATH" ]]; then
+  : > "$LOG_PATH"
+fi
 
 CODE='\033[36;40;1m'
 RESET='\033[0m'
