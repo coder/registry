@@ -34,14 +34,22 @@ const writeScriptCommand = (
 
 const utf8Locale = ["LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8"];
 
-// Renders the module, runs `setup`, the start or stop script and `inspect` as
-// root in a fresh container, and returns the script's output and the output of
-// `inspect`.
+// What the start script prints before it runs anything.
+const startHeader = (path: string) =>
+  [
+    "Personalize runs your scripts when this workspace starts and stops:",
+    `  \u001b[36;40;1m${path}\u001b[0m runs at start.`,
+    `  Executable files in \u001b[36;40;1m${path}.d\u001b[0m run with "start" at start, and with "stop" at stop in reverse order.`,
+    "Docs: https://registry.coder.com/modules/coder/personalize",
+  ].join("\n");
+
+// Renders the module and runs `setup`, then the start or stop script, as root
+// in a fresh container. For start, it checks that the output begins with the
+// header and returns the output that follows it.
 const runPersonalize = async ({
   phase = "start",
   path = "~/personalize",
   setup = "",
-  inspect = "",
   environment = utf8Locale,
 } = {}) => {
   const state = await runTerraformApply(import.meta.dir, {
@@ -68,14 +76,13 @@ const runPersonalize = async ({
 
     const output = await runBash(script);
 
-    const inspection = await runBash(inspect);
-    expect(inspection.exitCode, inspection.stderr).toBe(0);
-
-    return {
-      ...output,
-      stdout: output.stdout.trim(),
-      inspection: inspection.stdout.trim(),
-    };
+    let stdout = output.stdout.trim();
+    if (phase === "start") {
+      const header = startHeader(path);
+      expect(stdout.slice(0, header.length)).toBe(header);
+      stdout = stdout.slice(header.length).trim();
+    }
+    return { ...output, stdout };
   } finally {
     await removeContainer(id);
   }
@@ -87,18 +94,14 @@ describe("personalize", async () => {
   await runTerraformInit(import.meta.dir);
   testRequiredVariables(import.meta.dir, { agent_id: "foo" });
 
-  it("prints the v1 hint and discovery paths when neither path exists", async () => {
-    const output = await runPersonalize();
+  it("explains itself at start, and prints nothing at stop, when no script exists", async () => {
+    for (const phase of ["start", "stop"]) {
+      const output = await runPersonalize({ phase });
 
-    expect(output.exitCode).toBe(0);
-    expect(output.stdout.split("\n")).toEqual([
-      "✨ \u001b[0;1mYou don't have a personalize script!",
-      "",
-      "Create a script at \u001b[36;40;1m~/personalize\u001b[0m and make it executable.",
-      "It will run every time your workspace starts. Use it to install personal packages!",
-      "",
-      "Add executable drop-in scripts to \u001b[36;40;1m~/personalize.d\u001b[0m; find the module configuration at /root/.coder-modules/coder/personalize/config.",
-    ]);
+      expect(output.exitCode).toBe(0);
+      expect(output.stdout).toBe("");
+      expect(output.stderr).toBe("");
+    }
   });
 
   it("keeps the v1 notice for a non-executable personalize script", async () => {
@@ -130,26 +133,17 @@ describe("personalize", async () => {
     expect(output.stdout).toBe("arguments=0");
   });
 
-  it("runs a literal custom path and round-trips its config through sh and bash", async () => {
-    const path = "/tmp/personalize scripts/'$(printf injected) [daily]*";
-    const setup = writeScriptCommand(path, "echo custom");
-    const printConfig =
-      '. "$HOME/.coder-modules/coder/personalize/config"; printf "%s\\n" "$PERSONALIZE_PATH" "$PERSONALIZE_DIR" "$PERSONALIZE_LOG_DIR"';
-    const inspect = `sh -c '${printConfig}' && bash -c '${printConfig}'`;
+  it("uses a custom path literally, for the script and its drop-in directory", async () => {
+    const path = "/tmp/personalize scripts/'`printf injected` [daily]*";
+    const setup = [
+      writeScriptCommand(path, "echo custom"),
+      writeScriptCommand(`${path}.d/10-first`, 'echo "drop-in $1"'),
+    ].join("\n");
 
-    const output = await runPersonalize({ path, setup, inspect });
+    const output = await runPersonalize({ path, setup });
 
-    const expectedConfig = [
-      path,
-      `${path}.d`,
-      "/root/.coder-modules/coder/personalize/logs",
-    ];
     expect(output.exitCode).toBe(0);
-    expect(output.stdout).toBe("custom");
-    expect(output.inspection.split("\n")).toEqual([
-      ...expectedConfig,
-      ...expectedConfig,
-    ]);
+    expect(output.stdout).toBe("custom\ndrop-in start");
   });
 
   it("keeps the personalize script's failure and still runs drop-ins", async () => {
@@ -256,7 +250,7 @@ describe("personalize", async () => {
     }
   });
 
-  it("runs drop-ins without a personalize script and prints no hint", async () => {
+  it("runs drop-ins without a personalize script", async () => {
     const setup = writeScriptCommand(
       "/root/personalize.d/10-first",
       'echo "drop-in $1"',
@@ -266,23 +260,6 @@ describe("personalize", async () => {
 
     expect(output.exitCode).toBe(0);
     expect(output.stdout).toBe("drop-in start");
-  });
-
-  it("warns about a failed config write and still runs user scripts", async () => {
-    const setup = [
-      writeScriptCommand("/root/personalize", "echo personalize"),
-      writeScriptCommand("/root/personalize.d/10-first", "echo drop-in"),
-      // A file where the module directory should be makes mkdir fail.
-      "touch /root/.coder-modules",
-    ].join("\n");
-
-    const output = await runPersonalize({ setup });
-
-    expect(output.exitCode).toBe(0);
-    expect(output.stdout).toBe("personalize\ndrop-in");
-    expect(output.stderr).toContain(
-      "Warning: failed to write personalize config file",
-    );
   });
 
   it("preserves set, empty and unset caller locales for user scripts", async () => {
