@@ -106,7 +106,8 @@ resource "coder_agent" "main" {
   arch  = local.instance.coder_arch
   os    = "linux"
   auth  = "token"
-  # The first boot rebuilds NixOS before starting the agent.
+  order = 0
+  # The builder starts this agent after the first-boot rebuild.
   connection_timeout = 1200
 
   metadata {
@@ -129,14 +130,6 @@ resource "coder_agent" "main" {
     interval     = 600
     timeout      = 30
     script       = "coder stat disk --path $HOME"
-  }
-  # Include staged-but-not-activated generations in the agent metadata.
-  metadata {
-    key          = "nixos"
-    display_name = "NixOS version"
-    interval     = 60
-    timeout      = 10
-    script       = module.nix.version_command
   }
 }
 
@@ -178,8 +171,8 @@ locals {
 }
 
 module "nix" {
-  source  = "registry.coder.com/coder-labs/nix/coder"
-  version = "~> 1.0"
+  # TODO: use registry.coder.com/coder-labs/nix/coder ~> 2.0 once released.
+  source = "git::https://github.com/coder/registry.git//registry/coder-labs/modules/nix?ref=phorcys/aws-nixos-dual-agent"
 
   config = {
     extra-substituters        = ["https://nix-community.cachix.org"]
@@ -187,20 +180,16 @@ module "nix" {
   }
 
   nixos = {
-    flake_ref  = var.flake_ref
-    flake_attr = local.flake_attr
+    flake_ref   = var.flake_ref
+    flake_attr  = local.flake_attr
+    agent_token = try(coder_agent.main[0].token, "")
+    arch        = local.instance.coder_arch
   }
 }
 
 module "amazon-init" {
-  source = "./modules/amazon-init"
-
-  agent_token       = try(coder_agent.main[0].token, "")
-  agent_init_script = try(coder_agent.main[0].init_script, "")
-  boot_script       = module.nix.boot_script
-
-  log_display_name = "NixOS"
-  log_icon         = "/icon/nix.svg"
+  source      = "./modules/amazon-init"
+  boot_script = module.nix.boot_script
 }
 
 resource "aws_instance" "dev" {
@@ -234,10 +223,6 @@ resource "coder_metadata" "workspace_info" {
   item {
     key   = "AMI"
     value = aws_instance.dev.ami
-  }
-  item {
-    key   = "Build logs location"
-    value = module.nix.log_dir
   }
 }
 
