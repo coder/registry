@@ -74,32 +74,28 @@ With the Docker example template, short stop scripts ran to completion in testin
 
 ## Find the paths and logs
 
-At every start, Personalize writes the paths it uses to `~/.coder-modules/coder/personalize/config`:
+The agent sets these variables in the environment of every process it starts, including SSH sessions and other startup scripts:
+
+| Variable                           | Default value                             |
+| ---------------------------------- | ----------------------------------------- |
+| `CODER_MODULE_PERSONALIZE_PATH`    | `~/personalize`                           |
+| `CODER_MODULE_PERSONALIZE_DIR`     | `~/personalize.d`                         |
+| `CODER_MODULE_PERSONALIZE_LOG_DIR` | `~/.coder-modules/coder/personalize/logs` |
+
+A leading `~/` is replaced with the home directory, so the default values are absolute paths. A dotfiles install script can use them to put its files where this template's Personalize looks for them:
 
 ```sh
-PERSONALIZE_PATH=/home/coder/personalize
-PERSONALIZE_DIR=/home/coder/personalize.d
-PERSONALIZE_LOG_DIR=/home/coder/.coder-modules/coder/personalize/logs
-```
-
-The file is shell syntax, written with bash `printf %q`, so a script can source it. `sh` and bash both read it; a path with non-ASCII characters can require bash.
-
-The agent also sets `PERSONALIZE_PATH` in the environment of every process it starts. Use the variable in a script that runs during workspace start, such as a dotfiles install script, because the config file is written when Personalize runs, which can be after that script:
-
-```sh
-if [ -n "${PERSONALIZE_PATH:-}" ]; then
-  mkdir -p "$PERSONALIZE_PATH.d"
-  ln -sf "$PWD/workspace-services" "$PERSONALIZE_PATH.d/10-services"
+if [ -n "${CODER_MODULE_PERSONALIZE_DIR:-}" ]; then
+  mkdir -p "$CODER_MODULE_PERSONALIZE_DIR"
+  ln -sf "$PWD/workspace-services" "$CODER_MODULE_PERSONALIZE_DIR/10-services"
 fi
 ```
 
-`PERSONALIZE_PATH` is not set when `path` contains `$`, because the agent expands `$` in environment values.
-
-Script output goes to `logs/start.log` and `logs/stop.log` in `~/.coder-modules/coder/personalize/`.
+Script output goes to `start.log` and `stop.log` in the log directory, and to the Personalize tabs of the agent logs. At every start, the output begins with a short description of the two paths and a link to this page, so a developer can tell from inside the workspace that Personalize is present and how to use it.
 
 ## Use a custom path
 
-Set `path` to use a different personalize script. The drop-in directory is always `<path>.d`.
+Set `path` to use a different personalize script. The drop-in directory is always `<path>.d`. The path cannot contain `$` or a newline.
 
 ```tf
 module "personalize" {
@@ -132,6 +128,7 @@ This needs Coder 2.39.0 or later on the server, provisioners and agents, and Cod
 
 - Remove the `log_path` argument. Logs are now in `~/.coder-modules/coder/personalize/logs/`.
 - Use Coder Terraform provider 0.13.0 or later.
+- A `path` that contains `$` is rejected.
 - Add `phase = "start"` to an existing `coder_script_order` rule that selects `module.personalize`. Without it, template import fails.
 
 Existing `~/personalize` scripts keep running at start with no arguments.
