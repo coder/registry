@@ -25,9 +25,8 @@ run "defaults" {
     condition = (
       coder_script.personalize.log_path == "$HOME/.coder-modules/coder/personalize/logs/start.log"
       && coder_script.personalize_stop.log_path == "$HOME/.coder-modules/coder/personalize/logs/stop.log"
-      && coder_env.log_dir.value == "$HOME/.coder-modules/coder/personalize/logs"
     )
-    error_message = "Both logs must use the exported module log directory."
+    error_message = "Both logs must use the module log directory."
   }
 
   assert {
@@ -36,7 +35,6 @@ run "defaults" {
       && coder_env.path.value == "$HOME/personalize"
       && coder_env.dir.name == "CODER_MODULE_PERSONALIZE_DIR"
       && coder_env.dir.value == "$HOME/personalize.d"
-      && coder_env.log_dir.name == "CODER_MODULE_PERSONALIZE_LOG_DIR"
     )
     error_message = "The default paths must be exported with an agent-expandable HOME."
   }
