@@ -8,6 +8,9 @@ tags: [docker, container, agent, agent-relay, claude, cursor]
 
 # Agent Relay on Docker Containers
 
+> [!IMPORTANT]
+> Agent Relay is in beta and requires a [Coder Premium license](https://coder.com/trial).
+
 A minimal template that serves [Agent Relay](https://coder.com/docs/ai-coder/agent-relay)
 sessions for both Claude Code and Cursor. Agent Relay builds one workspace per
 session, and the template runs it as a single Docker container. When the runner
@@ -104,8 +107,7 @@ the Claude Code runner clones each session's repository itself.
 
 Each provider has a `coder_workspace_preset` that keeps prebuilt workspaces
 running and replaces each after an hour unclaimed, so a session claims a
-running workspace instead of waiting for a cold start. Prebuilds need a
-Premium license.
+running workspace instead of waiting for a cold start.
 
 - Set `claude_code_prebuilds` and `cursor_prebuilds` (default `1` each) to how
   many sessions of that provider start at once. Each instance runs until a
