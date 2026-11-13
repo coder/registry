@@ -16,7 +16,7 @@ Uses the [Coder Remote VS Code Extension](https://github.com/coder/vscode-coder)
 module "vscode" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/vscode-desktop/coder"
-  version  = "1.3.0"
+  version  = "1.4.0"
   agent_id = coder_agent.main.id
 }
 ```
@@ -29,7 +29,7 @@ module "vscode" {
 module "vscode" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/vscode-desktop/coder"
-  version  = "1.3.0"
+  version  = "1.4.0"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/project"
 }
@@ -43,7 +43,7 @@ Use `extensions` to install VS Code extension IDs before the first ordinary VS C
 module "vscode" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/vscode-desktop/coder"
-  version  = "1.3.0"
+  version  = "1.4.0"
   agent_id = coder_agent.main.id
 
   extensions = [
@@ -55,4 +55,32 @@ module "vscode" {
 
 The installation blocks ordinary workspace login for up to 30 minutes so extensions are ready before VS Code Desktop connects. A download, extraction, validation, or extension installation failure remains visible in the Coder startup logs. Later workspace starts reuse the existing VS Code Server CLI and do not force extension updates.
 
-The workspace image must provide Bash, `base64`, `sed`, `tar`, and either `curl` or `wget`. The workspace also needs HTTPS egress to the VS Code update and artifact hosts. Extension availability and compatibility depend on the Visual Studio Marketplace; use `publisher.extension@version` to request a specific version.
+### Pre-apply machine settings
+
+Use `settings` to configure machine-level settings on the remote workspace host before the user connects. The module creates or merges these settings into `~/.vscode-server/data/Machine/settings.json`.
+
+```tf
+module "vscode" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/coder/vscode-desktop/coder"
+  version  = "1.4.0"
+  agent_id = coder_agent.main.id
+
+  extensions = [
+    "ms-python.python",
+    "esbenp.prettier-vscode@12.4.0",
+  ]
+
+  settings = {
+    "editor.fontSize"              = 14
+    "editor.formatOnSave"          = true
+    "workbench.colorCustomizations" = {
+      "editor.background" = "#1e1e1e"
+    }
+  }
+}
+```
+
+Existing settings in `settings.json` (including JSONC comments and trailing commas) are preserved, and user symlinks are respected and atomically updated.
+
+The workspace image must provide Bash, `base64`, `sed`, `tar`, and either `curl` or `wget`. Merging an existing settings file requires `python3`. Extension availability and compatibility depend on the Visual Studio Marketplace; use `publisher.extension@version` to request a specific version.
