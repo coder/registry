@@ -30,7 +30,6 @@ mock_provider "aws" {
 }
 
 mock_provider "http" {}
-mock_provider "random" {}
 
 override_module {
   target = module.aws-region
@@ -104,8 +103,16 @@ run "stop" {
       transition  = "stop"
     }
   }
+  override_data {
+    target = module.nix.data.coder_workspace.me
+    values = {
+      name        = "test"
+      start_count = 0
+      transition  = "stop"
+    }
+  }
   assert {
-    condition     = length(coder_agent.main) == 0 && aws_ec2_instance_state.dev.state == "stopped"
-    error_message = "Stopping must remove the agent and stop, not destroy, the EC2 instance."
+    condition     = length(coder_agent.main) == 0 && module.nix.builder_agent_id == null && aws_ec2_instance_state.dev.state == "stopped"
+    error_message = "Stopping must remove both agents and stop, not destroy, the EC2 instance."
   }
 }
