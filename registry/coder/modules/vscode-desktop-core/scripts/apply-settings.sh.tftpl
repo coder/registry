@@ -54,6 +54,7 @@ printf '%s' '${base64encode(jsonencode(SETTINGS))}' | base64 -d > "$desired_sett
 chmod 600 "$desired_settings"
 
 if [ ! -e "$SETTINGS_FILE" ]; then
+  printf '\n' >> "$desired_settings"
   mv "$desired_settings" "$SETTINGS_FILE"
   printf 'Created IDE settings: %s\n' "$SETTINGS_FILE"
   exit 0
@@ -73,6 +74,6 @@ python3 - "$SETTINGS_FILE" "$desired_settings" "$merged_settings" << 'PY'
 ${file("${SCRIPTS_DIR}/merge-settings.py")}
 PY
 
-chmod 600 "$merged_settings"
+chmod --reference="$SETTINGS_FILE" "$merged_settings"
 mv "$merged_settings" "$SETTINGS_FILE"
 printf 'Merged IDE settings: %s\n' "$SETTINGS_FILE"

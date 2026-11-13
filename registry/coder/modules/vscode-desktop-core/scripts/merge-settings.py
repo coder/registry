@@ -107,12 +107,17 @@ def merge(existing, configured):
     return result
 
 
-existing = load_jsonc(sys.argv[1])
+try:
+    existing = load_jsonc(sys.argv[1])
+except (OSError, ValueError) as error:
+    print(f"Cannot parse the existing IDE settings file: {error}", file=sys.stderr)
+    raise SystemExit(1)
 with open(sys.argv[2], encoding="utf-8") as configured_file:
     configured = json.load(configured_file)
 
 if not isinstance(existing, dict):
-    raise ValueError("the existing IDE settings file must contain a JSON object")
+    print("The existing IDE settings file must contain a JSON object.", file=sys.stderr)
+    raise SystemExit(1)
 
 with open(sys.argv[3], "w", encoding="utf-8") as merged_file:
     json.dump(merge(existing, configured), merged_file, indent=2)
