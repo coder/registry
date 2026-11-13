@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+command_exists() {
+  command -v "$1" > /dev/null 2>&1
+}
+
+ARG_INSTALL='${ARG_INSTALL}'
+ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
+ARG_AIDER_CONFIG=$(echo -n '${ARG_AIDER_CONFIG}' | base64 -d)
+
+export PATH="$HOME/.local/bin:$PATH"
+
+echo "--------------------------------"
+printf "install_aider: %s\n" "$${ARG_INSTALL}"
+printf "workdir: %s\n" "$${ARG_WORKDIR}"
+echo "--------------------------------"
+
+function add_path_to_shell_profiles() {
+  local path_dir="$1"
+
+  for profile in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+    if [ -f "$${profile}" ]; then
+      if ! grep -q "$${path_dir}" "$${profile}" 2> /dev/null; then
+        echo "export PATH=\"\$PATH:$${path_dir}\"" >> "$${profile}"
+        echo "Added $${path_dir} to $${profile}"
+      fi
+    fi
+  done
+
+  local fish_config="$HOME/.config/fish/config.fish"
+  if [ -f "$${fish_config}" ]; then
+    if ! grep -q "$${path_dir}" "$${fish_config}" 2> /dev/null; then
+      echo "fish_add_path $${path_dir}" >> "$${fish_config}"
+      echo "Added $${path_dir} to $${fish_config}"
+    fi
+  fi
+}
+
+function ensure_aider_in_path() {
+  local AIDER_BIN=""
+  if command_exists aider; then
+    AIDER_BIN=$(command -v aider)
+  fi
+
+  if [ -z "$${AIDER_BIN}" ] || [ ! -x "$${AIDER_BIN}" ]; then
+    echo "Aider binary (aider) was not found or is not executable." >&2
+    return 1
+  fi
+
+  local AIDER_VERSION
+  if ! AIDER_VERSION=$("$${AIDER_BIN}" --version); then
+    echo "Aider binary could not be executed." >&2
+    return 1
+  fi
+  printf "Aider version: %s\n" "$${AIDER_VERSION}"
+
+  if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$${CODER_SCRIPT_BIN_DIR}/aider" ]; then
+    ln -s "$${AIDER_BIN}" "$${CODER_SCRIPT_BIN_DIR}/aider"
+    echo "Created symlink: $${CODER_SCRIPT_BIN_DIR}/aider -> $${AIDER_BIN}"
+  fi
+
+  add_path_to_shell_profiles "$(dirname "$${AIDER_BIN}")"
+}
+
+# Subshell scopes the temp-file cleanup trap to this function.
+install_with_official_installer() (
+  local installer_file
+  installer_file=$(mktemp)
+  trap 'rm -f "$${installer_file}"' EXIT
+
+  if ! curl --fail --silent --show-error --location \
+    --retry 2 --retry-delay 1 --retry-all-errors \
+    --connect-timeout 10 --max-time 300 \
+    --output "$${installer_file}" https://aider.chat/install.sh; then
+    echo "Aider installer could not be downloaded after up to 3 attempts." >&2
+    return 1
+  fi
+
+  if ! bash -n "$${installer_file}"; then
+    echo "Aider installer download was invalid." >&2
+    return 1
+  fi
+
+  # Installs uv and the latest aider-chat into ~/.local/bin; PATH is handled by
+  # this script.
+  if ! UV_NO_MODIFY_PATH=1 sh "$${installer_file}"; then
+    echo "Aider installation failed." >&2
+    return 1
+  fi
+)
+
+install_aider() {
+  if [ "$${ARG_INSTALL}" != "true" ]; then
+    echo "Skipping Aider installation as per configuration."
+    if ! ensure_aider_in_path; then
+      echo "ERROR: install_aider is false but a working 'aider' was not found on PATH." >&2
+      exit 1
+    fi
+    echo "Validated existing Aider"
+    return
+  fi
+
+  echo "Installing Aider"
+  install_with_official_installer
+
+  if ! ensure_aider_in_path; then
+    echo "ERROR: Failed to install Aider" >&2
+    exit 1
+  fi
+  echo "Installed Aider"
+}
+
+setup_workdir() {
+  if [ -n "$${ARG_WORKDIR}" ] && [ ! -d "$${ARG_WORKDIR}" ]; then
+    echo "Creating workdir: $${ARG_WORKDIR}"
+    mkdir -p "$${ARG_WORKDIR}"
+  fi
+}
+
+configure_aider_settings() {
+  local config_file="$HOME/.aider.conf.yml"
+  if [ -z "$${ARG_AIDER_CONFIG}" ]; then
+    echo "No base_aider_config provided; leaving $${config_file} unchanged."
+    return
+  fi
+
+  printf '%s\n' "$${ARG_AIDER_CONFIG}" > "$${config_file}"
+  echo "Aider config written: $${config_file}"
+}
+
+install_aider
+setup_workdir
+configure_aider_settings
+
+echo "Aider module setup completed."

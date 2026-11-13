@@ -185,12 +185,37 @@ run "specific_major_version" {
     agent_id      = "foo"
     folder        = "/home/coder"
     default       = ["GO"]
-    major_version = "2025.3"
+    major_version = "2026.3"
   }
 
   assert {
-    condition     = output.ide_metadata["GO"].json_data.majorVersion == "2025.3"
-    error_message = "Expected the API to return a release for major version '2025.3', but got '${output.ide_metadata["GO"].json_data.majorVersion}'"
+    condition     = output.ide_metadata["GO"].json_data.majorVersion == "2026.3"
+    error_message = "Expected the API to return a release for major version '2026.3', but got '${output.ide_metadata["GO"].json_data.majorVersion}'"
+  }
+
+  assert {
+    condition     = endswith(data.http.jetbrains_ide_versions["GO"].url, "&latest=true&majorVersion=2026.3")
+    error_message = "Expected a pinned major_version to query with latest=true and majorVersion, but got '${data.http.jetbrains_ide_versions["GO"].url}'"
+  }
+
+  assert {
+    condition     = length(values(jsondecode(data.http.jetbrains_ide_versions["GO"].response_body))[0]) == 1
+    error_message = "Expected the API to return a single release for a pinned major_version"
+  }
+}
+
+run "latest_major_version_url" {
+  command = plan
+
+  variables {
+    agent_id = "foo"
+    folder   = "/home/coder"
+    default  = ["GO"]
+  }
+
+  assert {
+    condition     = endswith(data.http.jetbrains_ide_versions["GO"].url, "&type=release&latest=true")
+    error_message = "Expected the default major_version to query with latest=true only, but got '${data.http.jetbrains_ide_versions["GO"].url}'"
   }
 }
 
@@ -359,7 +384,7 @@ run "rejects_major_version_with_ide_config" {
     folder        = "/home/coder"
     default       = ["GO"]
     options       = ["GO"]
-    major_version = "2025.3"
+    major_version = "2026.3"
     ide_config = {
       "GO" = { name = "GoLand", icon = "/icon/goland.svg", build = "253.31033.129" }
     }

@@ -1,128 +1,148 @@
 ---
 display_name: Goose
-description: Run Goose in your workspace
+description: Install and configure the Goose AI agent in your workspace.
 icon: ../../../../.icons/goose.svg
 verified: true
-tags: [agent, goose, ai, tasks]
+tags: [agent, goose, ai]
 ---
 
 # Goose
 
-Run the [Goose](https://block.github.io/goose/) agent in your workspace to generate code and perform tasks.
+Install and configure the [Goose](https://goose-docs.ai/) agent in your workspace.
 
 ```tf
 module "goose" {
-  source           = "registry.coder.com/coder/goose/coder"
-  version          = "3.0.2"
-  agent_id         = coder_agent.main.id
-  folder           = "/home/coder"
-  install_goose    = true
-  goose_version    = "v1.0.31"
-  goose_provider   = "anthropic"
-  goose_model      = "claude-3-5-sonnet-latest"
-  agentapi_version = "latest"
+  source         = "registry.coder.com/coder/goose/coder"
+  version        = "4.0.0"
+  agent_id       = coder_agent.main.id
+  goose_provider = "anthropic"
+  goose_model    = "claude-sonnet-4-6"
 }
 ```
 
-## Prerequisites
-
-- You must add the [Coder Login](https://registry.coder.com/modules/coder-login) module to your template
-
-The `codercom/oss-dogfood:latest` container image can be used for testing on container-based workspaces.
+> [!WARNING]
+> If upgrading from v3.x.x of this module: v4 is a major refactor that drops support for Coder Tasks and AgentAPI. The module now only installs and configures Goose; launch it with your own `coder_app`. `order`, `group`, `subdomain`, `install_agentapi`, `agentapi_version`, the `task_app_id` output, the `GOOSE_TASK_PROMPT` environment variable, and the built-in `coder` extension are removed, and `folder` is renamed to `workdir`. Keep using v3.x.x if you depend on Coder Tasks.
 
 ## Examples
 
-### Run in the background and report tasks
+### Standalone mode with a launcher app
 
 ```tf
-module "coder-login" {
-  count    = data.coder_workspace.me.start_count
-  source   = "registry.coder.com/coder/coder-login/coder"
-  version  = "1.0.15"
-  agent_id = coder_agent.main.id
-}
-
-variable "anthropic_api_key" {
-  type        = string
-  description = "The Anthropic API key"
-  sensitive   = true
-}
-
-data "coder_parameter" "ai_prompt" {
-  type        = "string"
-  name        = "AI Prompt"
-  default     = ""
-  description = "Write a prompt for Goose"
-  mutable     = true
-}
-
-# Set the prompt and system prompt for Goose via environment variables
-resource "coder_agent" "main" {
-  # ...
-  env = {
-    GOOSE_SYSTEM_PROMPT = <<-EOT
-      You are a helpful assistant that can help write code.
-
-      Run all long running tasks (e.g. npm run dev) in the background and not in the foreground.
-
-      Periodically check in on background tasks.
-
-      Notify Coder of the status of the task before and after your steps.
-    EOT
-    GOOSE_TASK_PROMPT   = data.coder_parameter.ai_prompt.value
-
-    # See https://block.github.io/goose/docs/getting-started/providers
-    ANTHROPIC_API_KEY = var.anthropic_api_key # or use a coder_parameter
-  }
+locals {
+  goose_workdir = "/home/coder/project"
 }
 
 module "goose" {
-  count            = data.coder_workspace.me.start_count
-  source           = "registry.coder.com/coder/goose/coder"
-  version          = "3.0.2"
-  agent_id         = coder_agent.main.id
-  folder           = "/home/coder"
-  install_goose    = true
-  goose_version    = "v1.0.31"
-  agentapi_version = "latest"
-
+  source         = "registry.coder.com/coder/goose/coder"
+  version        = "4.0.0"
+  agent_id       = coder_agent.main.id
+  workdir        = local.goose_workdir
   goose_provider = "anthropic"
-  goose_model    = "claude-3-5-sonnet-latest"
+  goose_model    = "claude-sonnet-4-6"
+}
+
+resource "coder_env" "anthropic_api_key" {
+  agent_id = coder_agent.main.id
+  name     = "ANTHROPIC_API_KEY"
+  value    = var.anthropic_api_key
+}
+
+resource "coder_app" "goose" {
+  agent_id     = coder_agent.main.id
+  slug         = "goose"
+  display_name = "Goose"
+  icon         = "/icon/goose.svg"
+  open_in      = "slim-window"
+  command      = <<-EOT
+    #!/usr/bin/env bash
+    set -e
+    cd "${local.goose_workdir}"
+    exec goose session
+  EOT
 }
 ```
 
-### Adding Custom Extensions (MCP)
+Goose reads provider credentials from environment variables such as `ANTHROPIC_API_KEY`. See [Goose providers](https://goose-docs.ai/docs/getting-started/providers).
 
-You can extend Goose's capabilities by adding custom extensions. For example, to add the desktop-commander extension:
+### Extensions (MCP)
 
 ```tf
 module "goose" {
-  # ... other configuration ...
-
-  pre_install_script = <<-EOT
-  npm i -g @wonderwhy-er/desktop-commander@latest
-  EOT
+  source         = "registry.coder.com/coder/goose/coder"
+  version        = "4.0.0"
+  agent_id       = coder_agent.main.id
+  goose_provider = "anthropic"
+  goose_model    = "claude-sonnet-4-6"
 
   additional_extensions = <<-EOT
-  desktop-commander:
-    args: []
-    cmd: desktop-commander
-    description: Ideal for background tasks
-    enabled: true
-    envs: {}
-    name: desktop-commander
-    timeout: 300
-    type: stdio
+    playwright:
+      name: playwright
+      type: stdio
+      cmd: npx
+      args: ["-y", "@playwright/mcp@latest", "--headless", "--isolated"]
+      enabled: true
+      timeout: 300
   EOT
 }
 ```
 
-This will add the desktop-commander extension to Goose, allowing it to run commands in the background. The extension will be available in the Goose interface and can be used to run long-running processes like development servers.
+`additional_extensions` uses the [`extensions`](https://goose-docs.ai/docs/guides/config-files#extensions-configuration) format of `config.yaml`. The module overwrites `config.yaml` with `goose_provider`, `goose_model`, the built-in `developer` extension, and `additional_extensions`.
 
-Note: The indentation in the heredoc is preserved, so you can write the YAML naturally.
+### Pinned version
+
+```tf
+module "goose" {
+  source         = "registry.coder.com/coder/goose/coder"
+  version        = "4.0.0"
+  agent_id       = coder_agent.main.id
+  goose_version  = "v1.54.0"
+  goose_provider = "anthropic"
+  goose_model    = "claude-sonnet-4-6"
+}
+```
+
+### Serialize a downstream `coder_script` after the install pipeline
+
+The module exposes the `scripts` output: an ordered list of `coder exp sync` names for the scripts this module creates (pre_install, install, post_install). Scripts that were not configured are absent.
+
+```tf
+module "goose" {
+  source         = "registry.coder.com/coder/goose/coder"
+  version        = "4.0.0"
+  agent_id       = coder_agent.main.id
+  goose_provider = "anthropic"
+  goose_model    = "claude-sonnet-4-6"
+}
+
+resource "coder_script" "post_goose" {
+  agent_id     = coder_agent.main.id
+  display_name = "Run after Goose install"
+  run_on_start = true
+  script       = <<-EOT
+    #!/usr/bin/env bash
+    set -euo pipefail
+    trap 'coder exp sync complete post-goose' EXIT
+    coder exp sync want post-goose ${join(" ", module.goose.scripts)}
+    coder exp sync start post-goose
+
+    goose --version
+  EOT
+}
+```
 
 ## Troubleshooting
 
-By default, this module is configured to run the embedded chat interface as a path-based application. In production, we recommend that you configure a [wildcard access URL](https://coder.com/docs/admin/setup#wildcard-access-url) and set `subdomain = true`. See [here](https://coder.com/docs/tutorials/best-practices/security-best-practices#disable-path-based-apps) for more details.
+Check the log files in `~/.coder-modules/coder/goose/logs/` for detailed information.
 
-The module will create log files in the workspace's `~/.goose-module` directory. If you run into any issues, look at them for more information.
+```bash
+cat ~/.coder-modules/coder/goose/logs/install.log
+cat ~/.coder-modules/coder/goose/logs/pre_install.log
+cat ~/.coder-modules/coder/goose/logs/post_install.log
+```
+
+## References
+
+- [Goose documentation](https://goose-docs.ai/docs/)
+- [Goose configuration files](https://goose-docs.ai/docs/guides/config-files)
+- [Goose environment variables](https://goose-docs.ai/docs/guides/environment-variables)
+- [Using extensions](https://goose-docs.ai/docs/getting-started/using-extensions)

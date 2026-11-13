@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# amazon-init runs this on every boot. Write the workspace facts and files,
+# then run the boot script with this environment: amazon-init puts git, nix
+# and nixos-rebuild on PATH.
+set -Eeuo pipefail
+decode() { printf '%s' "$1" | base64 -d; }
+export PATH="$(decode '${ARG_PATH}'):$PATH"
+export HOME=/root
+
+HOSTNAME_=$(decode '${ARG_HOSTNAME}')
+RUNTIME_DIR=$(decode '${ARG_RUNTIME_DIR}')
+
+install -d -m 0711 -o root -g root -- "$RUNTIME_DIR"
+
+[ -z "$HOSTNAME_" ] || hostnamectl set-hostname "$HOSTNAME_" || true
+
+# Public facts must never contain secrets.
+cat >"$RUNTIME_DIR/workspace.json" <<'CODER_AMAZON_INIT_FACTS'
+${FACTS_JSON}
+CODER_AMAZON_INIT_FACTS
+chmod 0644 "$RUNTIME_DIR/workspace.json"
+export CODER_WORKSPACE_FACTS="$RUNTIME_DIR/workspace.json"
+export CODER_RUNTIME_DIR="$RUNTIME_DIR"
+
+%{ for file in FILES ~}
+file_path=$(decode '${file.path}')
+install -d -m 0755 -- "$(dirname -- "$file_path")"
+printf '%s' '${file.content}' | base64 -d | gzip -dc >"$file_path"
+chmod 0644 -- "$file_path"
+%{ endfor ~}
+
+umask 077
+cat >"$RUNTIME_DIR/boot.sh" <<'CODER_AMAZON_INIT_BOOT_SCRIPT'
+${BOOT_SCRIPT}
+CODER_AMAZON_INIT_BOOT_SCRIPT
+umask 022
+exec bash "$RUNTIME_DIR/boot.sh"
