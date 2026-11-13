@@ -1,0 +1,33 @@
+# Verify that module tarball responses come from the registry application.
+#
+# Kept separate from check-registry-site-health because that workflow reports
+# availability to the public status page, whereas a failure here warrants
+# engineering triage first.
+name: check-registry-integrity
+on:
+  schedule:
+    - cron: "5,20,35,50 * * * *" # Runs every 15 minutes, offset from the health check
+  workflow_dispatch: # Allows manual triggering of the workflow if needed
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  check-integrity:
+    runs-on: ubuntu-latest
+    # Each probe can spend up to ~45s on a timeout, so cap the job well below
+    # the schedule interval rather than letting a degraded registry queue runs.
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run check_registry_integrity.sh
+        run: ./.github/scripts/check_registry_integrity.sh
