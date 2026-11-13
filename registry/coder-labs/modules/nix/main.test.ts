@@ -10,7 +10,10 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
+  execContainer,
   findResourceInstance,
+  removeContainer,
+  runContainer,
   runTerraformApply,
   runTerraformInit,
   type TerraformState,
@@ -164,6 +167,46 @@ describe("nix", async () => {
     });
   }, 30_000);
 
+  it("main agent can create its binary directory without owning the handoff directory", async () => {
+    const startAgent = await readFile(
+      path.join(import.meta.dir, "scripts/nixos/start-agent.sh.tftpl"),
+      "utf8",
+    );
+    const handoff = startAgent.match(/^chown_handoff\(\) \{[\s\S]*?^\}/m)?.[0];
+    expect(handoff).toBeDefined();
+    const container = await runContainer("ubuntu:24.04");
+    try {
+      const result = await execContainer(container, [
+        "bash",
+        "-ec",
+        `
+useradd --create-home workspace-user
+RUNTIME_DIR=/run/coder
+install -d -m 0711 -o root -g root "$RUNTIME_DIR"
+install -m 0600 /dev/null "$RUNTIME_DIR/agent.env"
+install -m 0700 /dev/null "$RUNTIME_DIR/init.sh"
+systemctl() { echo workspace-user; }
+${handoff}
+chown_handoff
+chown_handoff
+runuser -u workspace-user -- bash -ec '
+  mkdir -p /run/coder/bin
+  touch /run/coder/bin/coder
+  test -r /run/coder/agent.env
+  test -x /run/coder/init.sh
+  test ! -w /run/coder
+'
+stat -c '%U:%a' "$RUNTIME_DIR"
+`,
+      ]);
+      if (result.exitCode !== 0) console.error(result.stderr);
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout.trim()).toBe("root:711");
+    } finally {
+      await removeContainer(container);
+    }
+  }, 120_000);
+
   it("boot adopts the checkout, fast-forwards, skips unchanged builds and preserves local work", async () => {
     await withHome(async (home, bin) => {
       const remote = path.join(home, "remote");
@@ -174,11 +217,12 @@ describe("nix", async () => {
         STATE_DIR: path.join(home, "state"),
         GIT_CONFIG_GLOBAL: "/dev/null",
         GIT_CONFIG_NOSYSTEM: "1",
-        CODER_LOG_LIBRARY: path.join(home, "log.sh"),
       };
-      await writeFile(
-        env.CODER_LOG_LIBRARY,
-        'coder_log() { shift; echo "$*"; }\ncoder_log_pipe() { cat; }\n',
+      const runtime = path.join(home, "run");
+      await mkdir(runtime);
+      await executable(
+        path.join(runtime, "start-agent.sh"),
+        "#!/usr/bin/env bash\necho main agent started\n",
       );
       const git = (...args: string[]) =>
         run(["git", "-C", remote, ...args], env);
@@ -206,15 +250,25 @@ describe("nix", async () => {
           flake_attr: "host",
           flake_dir: checkout,
           log_dir: path.join(home, "logs"),
+          runtime_dir: runtime,
+          agent_token: "main-token",
+          arch: "amd64",
         }),
         config: JSON.stringify({ "max-jobs": "auto" }),
       });
-      const script = path.join(home, "boot.sh");
-      await executable(script, state.outputs.boot_script.value as string);
+      const script = path.join(home, "rebuild.sh");
+      await executable(
+        script,
+        findResourceInstance(state, "coder_script", "nixos_rebuild").script,
+      );
       const boot = () => run([script], env);
       const firstBoot = await boot();
       expect(firstBoot).toContain(`Flake URI: file://${remote}?ref=main#host`);
       expect(firstBoot).toContain("Switch complete");
+      expect(firstBoot).toContain("main agent started");
+      const rebuildStatus = () =>
+        readFile(path.join(env.STATE_DIR, "rebuild.status"), "utf8");
+      expect(await rebuildStatus()).toBe("ok\n");
       expect(
         await readFile(
           path.join(checkout, "hardware-configuration.nix"),
@@ -256,6 +310,18 @@ describe("nix", async () => {
         env,
       );
       expect(await boot()).toContain("tracks another repository");
+      await executable(
+        path.join(bin, "nixos-rebuild"),
+        "#!/usr/bin/env bash\necho build broke\nexit 1\n",
+      );
+      await writeFile(path.join(checkout, "flake.nix"), "broken\n");
+      const failedBoot = await boot().then(
+        () => "",
+        (error: Error) => error.message,
+      );
+      expect(failedBoot).toContain("the main agent stays stopped");
+      expect(failedBoot).not.toContain("main agent started");
+      expect(await rebuildStatus()).toBe("failed (exit 1)\n");
       expect(await readFile(path.join(checkout, "secret"), "utf8")).toBe(
         "keep-secret\n",
       );

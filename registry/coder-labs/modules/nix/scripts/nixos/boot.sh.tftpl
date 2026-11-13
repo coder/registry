@@ -1,12 +1,61 @@
 #!/usr/bin/env bash
+# Run as root on every boot, before the main agent. Publish the main agent
+# handoff, then start the builder agent. The builder rebuilds NixOS and then
+# runs start-agent.sh.
 set -euo pipefail
 
-FLAKE_URL=$(echo -n '${base64encode(ARG_FLAKE_URL)}' | base64 -d)
-FLAKE_BRANCH=$(echo -n '${base64encode(ARG_FLAKE_BRANCH)}' | base64 -d)
-FLAKE_ATTR=$(echo -n '${base64encode(ARG_FLAKE_ATTR)}' | base64 -d)
-FLAKE_DIR=$(echo -n '${base64encode(ARG_FLAKE_DIR)}' | base64 -d)
+ACCESS_URL=$(echo -n '${base64encode(ARG_ACCESS_URL)}' | base64 -d)
+AGENT_TOKEN=$(echo -n '${base64encode(ARG_AGENT_TOKEN)}' | base64 -d)
+BUILDER_TOKEN=$(echo -n '${base64encode(ARG_BUILDER_TOKEN)}' | base64 -d)
+RUNTIME_DIR=$(echo -n '${base64encode(ARG_RUNTIME_DIR)}' | base64 -d)
 LOG_DIR=$(echo -n '${base64encode(ARG_LOG_DIR)}' | base64 -d)
-NIX_CONFIG=$(echo -n '${base64encode(ARG_NIX_CONF)}' | base64 -d)
-export NIX_CONFIG
+# The agent keeps its socket and script data in TMPDIR. Use a disk, not a
+# tmpfs: root's nix can build there.
+BUILDER_TMP=/var/tmp/coder-nixos-builder
 
-${REBUILD_SH}
+# The runtime directory holds the tokens; only the handoff files go to the agent.
+install -d -m 0711 -o root -g root -- "$RUNTIME_DIR"
+rm -f "$RUNTIME_DIR/ready"
+
+umask 077
+printf 'CODER_AGENT_TOKEN=%s\nCODER_AGENT_URL=%s\n' "$AGENT_TOKEN" "$ACCESS_URL" >"$RUNTIME_DIR/agent.env"
+# Both agents download the same binary; each gets its own copy of the script.
+cat >"$RUNTIME_DIR/builder.sh" <<'CODER_NIXOS_INIT_SCRIPT'
+${INIT_SCRIPT}
+CODER_NIXOS_INIT_SCRIPT
+install -m 0700 -- "$RUNTIME_DIR/builder.sh" "$RUNTIME_DIR/init.sh"
+cat >"$RUNTIME_DIR/start-agent.sh" <<'CODER_NIXOS_START_AGENT'
+${START_AGENT}
+CODER_NIXOS_START_AGENT
+chmod 0700 "$RUNTIME_DIR/builder.sh" "$RUNTIME_DIR/start-agent.sh"
+
+# The builder gets this whole environment: boot hooks such as amazon-init put
+# git, nix and nixos-rebuild on PATH. Drop what belongs to the hook's unit.
+(
+  unset INVOCATION_ID JOURNAL_STREAM SYSTEMD_EXEC_PID
+  export CODER_AGENT_TOKEN="$BUILDER_TOKEN" CODER_AGENT_URL="$ACCESS_URL" \
+    BINARY_DIR="$RUNTIME_DIR/builder-bin" CODER_AGENT_LOG_DIR="$LOG_DIR" TMPDIR="$BUILDER_TMP"
+  # The agent sets SSH_CLIENT, so NixOS bash reads /etc/bashrc, which resets
+  # PATH from /etc/profile unless the profile is marked as loaded.
+  export __ETC_PROFILE_DONE=1
+  declare -px
+) >"$RUNTIME_DIR/builder.env"
+umask 022
+touch "$RUNTIME_DIR/ready"
+
+install -d -m 0700 -- "$RUNTIME_DIR/builder-bin" "$BUILDER_TMP"
+install -d -m 0755 -- "$LOG_DIR"
+# The agent defaults in /tmp belong to the main agent. Only a root agent
+# creates such entries there.
+find /tmp -maxdepth 1 \( -name 'coder-*' -o -name 'boundary-audit.sock' \) -user root \
+  -exec rm -rf -- {} + 2>/dev/null || true
+
+# A transient unit: a fresh image has no configuration to declare one in, and
+# nixos-rebuild switch leaves units it does not manage alone.
+systemctl stop coder-builder 2>/dev/null || true
+systemctl reset-failed coder-builder 2>/dev/null || true
+# Only the builder starts the main agent, after a successful rebuild.
+# shellcheck disable=SC2016
+systemd-run --unit=coder-builder --description="Coder NixOS builder agent" \
+  -p Restart=always -p RestartSec=5 \
+  bash -c '. "$1"; exec bash "$2"' coder-builder "$RUNTIME_DIR/builder.env" "$RUNTIME_DIR/builder.sh"

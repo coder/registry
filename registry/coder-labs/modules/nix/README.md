@@ -13,12 +13,14 @@ Apply a NixOS flake before the agent starts, open a project's `nix develop` shel
 ```tf
 module "nix" {
   source   = "registry.coder.com/coder-labs/nix/coder"
-  version  = "1.0.0"
+  version  = "2.0.0"
   agent_id = coder_agent.main.id
 
   nixos = {
-    flake_ref  = "https://github.com/coder/nixos-example-flake?ref=main"
-    flake_attr = "coder-workspace-ec2-x86_64"
+    flake_ref   = "https://github.com/coder/nixos-example-flake?ref=main"
+    flake_attr  = "coder-workspace-ec2-x86_64"
+    agent_token = try(coder_agent.main[0].token, "")
+    arch        = "amd64"
   }
   develop = {
     enabled = true
@@ -29,11 +31,13 @@ module "nix" {
 
 ## NixOS
 
-The root-run `boot_script` clones the Git repository and runs `nixos-rebuild switch`. Hand it to cloud-init, EC2 user-data, or another boot hook before the agent starts. See the [AWS EC2 (NixOS) template](../../templates/aws-nixos) for complete wiring. A `git+` URL prefix and `?ref=` branch are supported; otherwise Git uses the default branch.
+NixOS mode adds a root **builder** agent, shown after the main agent. Its **NixOS rebuild** script clones the Git repository, runs `nixos-rebuild switch`, and then starts the main agent's `coder-agent.service`. If the rebuild fails, the main agent stays stopped and the builder keeps a root shell to fix it: `coder ssh <workspace>.builder`. Run `systemctl restart coder-builder` there, or restart the workspace, to try again. The builder's **Rebuild status** shows `running`, `ok` or `failed (exit N)`, since the dashboard keeps a connected agent green even when its startup script fails. The builder stays connected because Coder marks a workspace unhealthy when any agent disconnects. With two agents, CLI commands must name one, e.g. `coder ssh <workspace>.main`.
+
+Pass the main agent's token as `agent_token` and the instance's agent architecture as `arch`. The main agent must use `auth = "token"` and the same architecture, because it runs the builder's init script. Hand the sensitive `boot_script` output to cloud-init, EC2 user-data, or another hook that runs it as root on every boot; see the [AWS EC2 (NixOS) template](../../templates/aws-nixos) for complete wiring. It needs the `coder-agent.service` handoff from the [Coder NixOS modules](https://github.com/coder/nixos-modules) in `runtime_dir`, and passes its own environment to the builder, so `git` must be on the hook's `PATH`. A `git+` URL prefix and `?ref=` branch are supported; otherwise Git uses the default branch.
 
 A new checkout adopts the target directory: files tracked by the flake take precedence; unrelated files are kept. Subsequent boots fast-forward clean checkouts only. Tracked edits and local commits are preserved, and a checkout pointing to another repository is built as-is with a warning. Untracked files don't trigger rebuilds because Git flakes ignore them.
 
-Rebuild transcripts are written to `/var/log/coder-nixos/rebuild-latest.log`. The last built revision is recorded in `/var/lib/coder-nixos`. These are system paths so the workspace user can read the logs; development scripts use the standard per-user module directory. When provided, `CODER_LOG_LIBRARY` streams progress to the Coder agent log. A failed rebuild exits nonzero; the boot hook should still start the agent so the workspace stays reachable.
+Rebuild transcripts are written to `/var/log/coder-nixos/rebuild-latest.log`, next to the builder agent's own logs. The builder's log stops at 512 KiB, below Coder's 1 MiB per-agent cap; the transcript keeps the rest. The last built revision is recorded in `/var/lib/coder-nixos`. These are system paths so the workspace user can read the logs; development scripts use the standard per-user module directory.
 
 Credentials embedded in Git URLs appear in Terraform state, the checkout's `.git/config` and `flake_uri`; prefer externally managed Git credentials.
 
@@ -46,7 +50,7 @@ For a workspace that isn't NixOS:
 ```tf
 module "nix" {
   source   = "registry.coder.com/coder-labs/nix/coder"
-  version  = "1.0.0"
+  version  = "2.0.0"
   agent_id = coder_agent.main.id
   nixos    = { enabled = false }
   develop  = { enabled = true, path = "~/project", shell = "ci" }
