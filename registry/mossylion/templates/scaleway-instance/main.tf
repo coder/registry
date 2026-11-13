@@ -100,8 +100,8 @@ resource "coder_agent" "main" {
 }
 
 module "code-server" {
-  source   = "registry.coder.com/modules/code-server/coder"
-  version  = "1.3.1"
+  source   = "registry.coder.com/coder/code-server/coder"
+  version  = "1.6.0"
   agent_id = coder_agent.main.id
   order    = 1
   folder   = "/home/${local.linux_user}"
@@ -113,7 +113,7 @@ module "code-server" {
 module "dotfiles" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/dotfiles/coder"
-  version  = "1.2.1"
+  version  = "1.4.2"
   agent_id = coder_agent.main.id
 }
 
@@ -196,8 +196,14 @@ data "coder_parameter" "base_image" {
   }
 
   option {
-    name  = "Fedora 41"
-    value = "fedora_41"
+    name  = "Ubuntu 26.04 (Resolute)"
+    value = "ubuntu_resolute"
+    icon  = "/icon/ubuntu.svg"
+  }
+
+  option {
+    name  = "Fedora 44"
+    value = "fedora_44"
     icon  = "/icon/fedora.svg"
   }
 }
@@ -233,12 +239,13 @@ data "coder_parameter" "disk_size" {
 locals {
   scaleway_config_raw = jsondecode(file("${path.module}/scaleway-config.json"))
 
+  # Only offer instance types available in the selected region
   scaleway_instance_options = {
     for instance in local.scaleway_config_raw :
     instance.name => {
       name  = "${instance.name} (${instance.cpu} CPU, ${instance.gpu} GPU, ${floor(instance.ram / 1073741824)} GB RAM)"
       value = instance.name
-    }
+    } if contains(instance.regions, data.coder_parameter.region.value)
   }
 
   instance_arch_map = {
@@ -246,8 +253,9 @@ locals {
     instance.name => instance.arch
   }
 
-  # Convert Scaleway arch format to Coder arch format
-  selected_arch = local.instance_arch_map[data.coder_parameter.instance_size.value] == "x86_64" ? "amd64" : local.instance_arch_map[data.coder_parameter.instance_size.value]
+  # Convert Scaleway arch format (x64 / x86_64 / arm64) to Coder arch format
+  scaleway_arch = local.instance_arch_map[data.coder_parameter.instance_size.value]
+  selected_arch = contains(["x64", "x86_64"], local.scaleway_arch) ? "amd64" : local.scaleway_arch
 }
 
 data "coder_parameter" "instance_size" {

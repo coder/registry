@@ -109,6 +109,7 @@ output "scripts" {
 - Use `tf` (not `hcl`) for code blocks in README; use relative icon paths (e.g., `../../../../.icons/`)
 - **Never include parameter listings or input/output variable tables in module or template READMEs.** This includes workspace parameters declared with `coder_parameter`. The registry automatically parses the Terraform source and displays parameters in a dedicated tab on `registry.coder.com`; input/output documentation is also generated from the source. Duplicating these listings in the README is redundant and creates maintenance drift.
 - Usage examples (e.g., a `module "..." { }` block) and explanations of parameter behavior are encouraged, but not tables or lists enumerating parameters, inputs, or outputs.
+- Script shebangs must be `#!/usr/bin/env bash`, never `#!/bin/bash`. NixOS workspaces have only `/bin/sh`, so the kernel fails the exec before anything runs and the agent reports exit 255 with an empty log — which looks like a broken module, not a missing interpreter.
 
 ### Variable and output conventions
 
