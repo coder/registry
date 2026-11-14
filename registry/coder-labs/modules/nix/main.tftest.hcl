@@ -36,6 +36,23 @@ run "nixos_defaults_and_safe_render" {
   }
 }
 
+# The agent socket ignores TMPDIR. A root socket in /tmp blocks the main agent.
+run "builder_socket_path" {
+  command = apply
+  variables {
+    nixos = {
+      flake_ref   = "https://example.org/flake"
+      flake_attr  = "host"
+      agent_token = "main-token"
+      arch        = "amd64"
+    }
+  }
+  assert {
+    condition     = strcontains(nonsensitive(output.boot_script), "CODER_AGENT_SOCKET_PATH=\"$BUILDER_TMP/coder-agent.sock\"")
+    error_message = "The builder agent socket must not use the main agent's default path."
+  }
+}
+
 run "reject_root_flake_dir" {
   command = plan
   variables {

@@ -9,8 +9,8 @@ AGENT_TOKEN=$(echo -n '${base64encode(ARG_AGENT_TOKEN)}' | base64 -d)
 BUILDER_TOKEN=$(echo -n '${base64encode(ARG_BUILDER_TOKEN)}' | base64 -d)
 RUNTIME_DIR=$(echo -n '${base64encode(ARG_RUNTIME_DIR)}' | base64 -d)
 LOG_DIR=$(echo -n '${base64encode(ARG_LOG_DIR)}' | base64 -d)
-# The agent keeps its socket and script data in TMPDIR. Use a disk, not a
-# tmpfs: root's nix can build there.
+# The builder keeps its script data and sockets here. Use a disk, not a tmpfs:
+# root's nix can build there.
 BUILDER_TMP=/var/tmp/coder-nixos-builder
 
 # The runtime directory holds the tokens; only the handoff files go to the agent.
@@ -34,7 +34,8 @@ chmod 0700 "$RUNTIME_DIR/builder.sh" "$RUNTIME_DIR/start-agent.sh"
 (
   unset INVOCATION_ID JOURNAL_STREAM SYSTEMD_EXEC_PID
   export CODER_AGENT_TOKEN="$BUILDER_TOKEN" CODER_AGENT_URL="$ACCESS_URL" \
-    BINARY_DIR="$RUNTIME_DIR/builder-bin" CODER_AGENT_LOG_DIR="$LOG_DIR" TMPDIR="$BUILDER_TMP"
+    BINARY_DIR="$RUNTIME_DIR/builder-bin" CODER_AGENT_LOG_DIR="$LOG_DIR" TMPDIR="$BUILDER_TMP" \
+    CODER_AGENT_SOCKET_PATH="$BUILDER_TMP/coder-agent.sock"
   # The agent sets SSH_CLIENT, so NixOS bash reads /etc/bashrc, which resets
   # PATH from /etc/profile unless the profile is marked as loaded.
   export __ETC_PROFILE_DONE=1
