@@ -99,6 +99,8 @@ Select the Windows Server 2022 image, 4 CPUs or more, and 8 GB of memory or more
 
 Open the Web RDP app, or use `coder ssh`.
 
+![A Windows Server 2022 workspace in Web RDP](../../.images/incus-vm-windows.png)
+
 > [!WARNING]
 > The windows-rdp module sets the `Administrator` password to `coderRDP!`. To change it, set `admin_password` on the module in `windows.tf`.
 
