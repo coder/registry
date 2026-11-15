@@ -13,7 +13,7 @@ Apply a NixOS flake before the agent starts, open a project's `nix develop` shel
 ```tf
 module "nix" {
   source   = "registry.coder.com/coder-labs/nix/coder"
-  version  = "2.0.0"
+  version  = "2.0.1"
   agent_id = coder_agent.main.id
 
   nixos = {
@@ -50,7 +50,7 @@ For a workspace that isn't NixOS:
 ```tf
 module "nix" {
   source   = "registry.coder.com/coder-labs/nix/coder"
-  version  = "2.0.0"
+  version  = "2.0.1"
   agent_id = coder_agent.main.id
   nixos    = { enabled = false }
   develop  = { enabled = true, path = "~/project", shell = "ci" }
