@@ -14,55 +14,16 @@ variable "agent_id" {
   description = "The ID of a Coder agent."
 }
 
-data "coder_workspace" "me" {}
-
-data "coder_workspace_owner" "me" {}
-
-variable "order" {
-  type        = number
-  description = "The order determines the position of app in the UI presentation. The lowest order is shown first and apps with equal order are sorted by name (ascending order)."
-  default     = null
-}
-
-variable "group" {
-  type        = string
-  description = "The name of a group that this app belongs to."
-  default     = null
-}
-
 variable "icon" {
   type        = string
-  description = "The icon to use for the app."
+  description = "The icon to use for the install scripts."
   default     = "/icon/opencode.svg"
 }
 
 variable "workdir" {
   type        = string
-  description = "The folder to run OpenCode in."
-}
-
-variable "report_tasks" {
-  type        = bool
-  description = "Whether to enable task reporting to Coder UI via AgentAPI"
-  default     = true
-}
-
-variable "cli_app" {
-  type        = bool
-  description = "Whether to create a CLI app for OpenCode"
-  default     = false
-}
-
-variable "web_app_display_name" {
-  type        = string
-  description = "Display name for the web app"
-  default     = "OpenCode"
-}
-
-variable "cli_app_display_name" {
-  type        = string
-  description = "Display name for the CLI app"
-  default     = "OpenCode CLI"
+  description = "Optional project directory. When set, the module pre-creates it if missing. OpenCode has no workspace trust prompt, so nothing else is written for it."
+  default     = null
 }
 
 variable "pre_install_script" {
@@ -77,127 +38,70 @@ variable "post_install_script" {
   default     = null
 }
 
-variable "install_agentapi" {
-  type        = bool
-  description = "Whether to install AgentAPI."
-  default     = true
-}
-
-variable "agentapi_version" {
-  type        = string
-  description = "The version of AgentAPI to install."
-  default     = "v0.11.2"
-}
-
-variable "ai_prompt" {
-  type        = string
-  description = "Initial task prompt for OpenCode."
-  default     = ""
-}
-
-variable "subdomain" {
-  type        = bool
-  description = "Whether to use a subdomain for AgentAPI."
-  default     = false
-}
-
 variable "install_opencode" {
   type        = bool
-  description = "Whether to install OpenCode."
+  description = "Whether to install OpenCode with the official V2 installer (https://opencode.ai/v2/install). When false, a working OpenCode 2 opencode must already be on PATH."
   default     = true
 }
 
 variable "opencode_version" {
   type        = string
-  description = "The version of OpenCode to install."
+  description = "The version of OpenCode to install, for example '2.0.27'. Use 'latest' for the newest release. The module requires OpenCode 2. See https://www.npmjs.com/package/@opencode/cli?activeTab=versions"
   default     = "latest"
-}
-
-variable "continue" {
-  type        = bool
-  description = "continue the last session. Uses the --continue flag"
-  default     = false
-}
-
-variable "session_id" {
-  type        = string
-  description = "Session id to continue. Passed via --session"
-  default     = ""
 }
 
 variable "auth_json" {
   type        = string
-  description = "Your auth.json from $HOME/.local/share/opencode/auth.json, Required for non-interactive authentication"
+  description = "OpenCode credentials in the JSON array format printed by `opencode auth export`. Imported with `opencode auth import`; credentials with the same id are replaced, other saved accounts are preserved. Exported to the workspace as CODER_OPENCODE_AUTH_JSON so it is never rendered into the install script. See https://opencode.ai/v2/docs/cli/providers"
+  sensitive   = true
   default     = ""
 }
 
-variable "config_json" {
+variable "base_opencode_config" {
   type        = string
-  description = "OpenCode JSON config. https://opencode.ai/docs/config/"
+  description = "OpenCode configuration as JSON. When set, it overwrites the global opencode.json on every start, before mcp is applied. See https://opencode.ai/v2/docs/config/"
   default     = ""
+}
+
+variable "mcp" {
+  type        = string
+  description = "MCP servers as a JSON object keyed by server name, added under mcp.servers in the global opencode.json. Servers already in the file win on duplicate names. See https://opencode.ai/v2/docs/mcp-servers/"
+  default     = ""
+}
+
+resource "coder_env" "opencode_auth_json" {
+  count    = var.auth_json != "" ? 1 : 0
+  agent_id = var.agent_id
+  name     = "CODER_OPENCODE_AUTH_JSON"
+  value    = var.auth_json
 }
 
 locals {
-  workdir         = trimsuffix(var.workdir, "/")
-  app_slug        = "opencode"
-  install_script  = file("${path.module}/scripts/install.sh")
-  start_script    = file("${path.module}/scripts/start.sh")
-  module_dir_name = ".opencode-module"
+  workdir = var.workdir != null ? trimsuffix(var.workdir, "/") : ""
+  install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
+    ARG_INSTALL          = tostring(var.install_opencode)
+    ARG_OPENCODE_VERSION = base64encode(var.opencode_version)
+    ARG_WORKDIR          = local.workdir != "" ? base64encode(local.workdir) : ""
+    ARG_BASE_CONFIG      = var.base_opencode_config != "" ? base64encode(var.base_opencode_config) : ""
+    ARG_MCP_CONFIG       = var.mcp != "" ? base64encode(var.mcp) : ""
+  })
+  module_dir_name = ".coder-modules/coder-labs/opencode"
 }
 
-module "agentapi" {
-  source  = "registry.coder.com/coder/agentapi/coder"
-  version = "2.0.0"
+module "coder_utils" {
+  source  = "registry.coder.com/coder/coder-utils/coder"
+  version = "0.0.1"
 
-  agent_id             = var.agent_id
-  web_app_slug         = local.app_slug
-  web_app_order        = var.order
-  web_app_group        = var.group
-  web_app_icon         = var.icon
-  web_app_display_name = var.web_app_display_name
-  cli_app              = var.cli_app
-  cli_app_slug         = var.cli_app ? "${local.app_slug}-cli" : null
-  cli_app_display_name = var.cli_app ? var.cli_app_display_name : null
-  agentapi_subdomain   = var.subdomain
-  folder               = local.workdir
-  module_dir_name      = local.module_dir_name
-  install_agentapi     = var.install_agentapi
-  agentapi_version     = var.agentapi_version
-  pre_install_script   = var.pre_install_script
-  post_install_script  = var.post_install_script
-  start_script         = <<-EOT
-     #!/usr/bin/env bash
-     set -o errexit
-     set -o pipefail
-     echo -n '${base64encode(local.start_script)}' | base64 -d > /tmp/start.sh
-     chmod +x /tmp/start.sh
-
-     ARG_WORKDIR='${local.workdir}' \
-     ARG_AI_PROMPT='${base64encode(var.ai_prompt)}' \
-     ARG_SESSION_ID='${var.session_id}' \
-     ARG_REPORT_TASKS='${var.report_tasks}' \
-     ARG_CONTINUE='${var.continue}' \
-     /tmp/start.sh
-  EOT
-
-  install_script = <<-EOT
-    #!/usr/bin/env bash
-    set -o errexit
-    set -o pipefail
-
-    echo -n '${base64encode(local.install_script)}' | base64 -d > /tmp/install.sh
-    chmod +x /tmp/install.sh
-    ARG_OPENCODE_VERSION='${var.opencode_version}' \
-    ARG_MCP_APP_STATUS_SLUG='${local.app_slug}' \
-    ARG_INSTALL_OPENCODE='${var.install_opencode}' \
-    ARG_REPORT_TASKS='${var.report_tasks}' \
-    ARG_WORKDIR='${local.workdir}' \
-    ARG_AUTH_JSON='${var.auth_json != null ? base64encode(replace(var.auth_json, "'", "'\\''")) : ""}' \
-    ARG_OPENCODE_CONFIG='${var.config_json != null ? base64encode(replace(var.config_json, "'", "'\\''")) : ""}' \
-    /tmp/install.sh
-  EOT
+  agent_id            = var.agent_id
+  module_directory    = "$HOME/${local.module_dir_name}"
+  display_name_prefix = "OpenCode"
+  icon                = var.icon
+  pre_install_script  = var.pre_install_script
+  post_install_script = var.post_install_script
+  install_script      = local.install_script
 }
 
-output "task_app_id" {
-  value = module.agentapi.task_app_id
+output "scripts" {
+  description = "Ordered list of coder exp sync names for the coder_script resources this module creates, in run order (pre_install, install, post_install). Scripts that were not configured are absent from the list."
+  value       = module.coder_utils.scripts
 }

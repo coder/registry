@@ -1,103 +1,157 @@
 ---
 display_name: OpenCode
 icon: ../../../../.icons/opencode.svg
-description: Run OpenCode AI coding assistant for AI-powered terminal assistance
+description: Install and configure the OpenCode AI coding agent in your workspace.
 verified: false
-tags: [agent, opencode, ai, tasks]
+tags: [agent, opencode, ai]
 ---
 
 # OpenCode
 
-Run [OpenCode](https://opencode.ai) AI coding assistant in your workspace for intelligent code generation, analysis, and development assistance. This module integrates with [AgentAPI](https://github.com/coder/agentapi) for seamless task reporting in the Coder UI.
+Install and configure [OpenCode 2](https://opencode.ai/v2/docs/) in your workspace.
 
 ```tf
 module "opencode" {
   source   = "registry.coder.com/coder-labs/opencode/coder"
-  version  = "0.1.3"
+  version  = "1.0.0"
   agent_id = coder_agent.main.id
-  workdir  = "/home/coder/project"
 }
 ```
 
-## Prerequisites
-
-- **Authentication credentials** - OpenCode auth.json file is required for non-interactive authentication, you can find this file on your system: `$HOME/.local/share/opencode/auth.json`
+> [!WARNING]
+> If upgrading from v0.x.x of this module: v1 is a major refactor that drops support for Coder Tasks and AgentAPI and requires OpenCode 2. The module now only installs and configures OpenCode; launch it with your own `coder_app`. `ai_prompt`, `continue`, and `session_id` are removed, `config_json` is renamed to `base_opencode_config`, MCP servers move to `mcp`, and `auth_json` now takes the output of `opencode auth export`. See [Migrate from V1](https://opencode.ai/v2/docs/migrate-v1/). Keep using v0.x.x if you depend on Coder Tasks.
 
 ## Examples
 
-### Basic Usage
+### Standalone mode with a launcher app
 
 ```tf
-module "opencode" {
-  source   = "registry.coder.com/coder-labs/opencode/coder"
-  version  = "0.1.3"
-  agent_id = coder_agent.main.id
-  workdir  = "/home/coder/project"
-
-  auth_json = <<-EOT
-{
-  "google": {
-    "type": "api",
-    "key": "gem-xxx-xxxx"
-  },
-  "anthropic": {
-    "type": "api",
-    "key": "sk-ant-api03-xxx-xxxxxxx"
-  }
-
+locals {
+  opencode_workdir = "/home/coder/project"
 }
-EOT
 
-  config_json = jsonencode({
-    "$schema" = "https://opencode.ai/config.json"
-    mcp = {
-      filesystem = {
-        command = ["npx", "-y", "@modelcontextprotocol/server-filesystem", "/home/coder/projects"]
-        enabled = true
-        type    = "local"
-        environment = {
-          SOME_VARIABLE_X = "value"
-        }
-      }
-      playwright = {
-        command = ["npx", "-y", "@playwright/mcp@latest", "--headless", "--isolated"]
-        enabled = true
-        type    = "local"
-      }
-    }
-    model = "anthropic/claude-sonnet-4-20250514"
-  })
+module "opencode" {
+  source    = "registry.coder.com/coder-labs/opencode/coder"
+  version   = "1.0.0"
+  agent_id  = coder_agent.main.id
+  workdir   = local.opencode_workdir
+  auth_json = var.opencode_auth_json
+}
 
-  pre_install_script = <<-EOT
+resource "coder_app" "opencode" {
+  agent_id     = coder_agent.main.id
+  slug         = "opencode"
+  display_name = "OpenCode"
+  icon         = "/icon/opencode.svg"
+  open_in      = "slim-window"
+  command      = <<-EOT
     #!/usr/bin/env bash
-    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-    sudo apt-get install -y nodejs
+    set -e
+    cd "${local.opencode_workdir}"
+    exec opencode --continue
   EOT
 }
 ```
 
-### Standalone CLI Mode
-
-Run OpenCode as a command-line tool without web interface or task reporting:
+### Configuration and MCP servers
 
 ```tf
 module "opencode" {
-  source       = "registry.coder.com/coder-labs/opencode/coder"
-  version      = "0.1.3"
+  source   = "registry.coder.com/coder-labs/opencode/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.main.id
+
+  base_opencode_config = <<-EOF
+  {
+    "model": "anthropic/claude-sonnet-4-5"
+  }
+  EOF
+
+  mcp = <<-EOF
+  {
+    "playwright": {
+      "type": "local",
+      "command": ["npx", "-y", "@playwright/mcp@latest", "--headless", "--isolated"]
+    },
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "disabled": true
+    }
+  }
+  EOF
+}
+```
+
+`base_opencode_config` uses the [`opencode.json`](https://opencode.ai/v2/docs/config/) format and overwrites the global file on every start. `mcp` uses the [`mcp.servers`](https://opencode.ai/v2/docs/mcp-servers/) format and is added after it.
+
+### Serialize a downstream `coder_script` after the install pipeline
+
+The module exposes the `scripts` output: an ordered list of `coder exp sync` names for the scripts this module creates (pre_install, install, post_install). Scripts that were not configured are absent.
+
+```tf
+module "opencode" {
+  source   = "registry.coder.com/coder-labs/opencode/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.main.id
+}
+
+resource "coder_script" "post_opencode" {
   agent_id     = coder_agent.main.id
-  workdir      = "/home/coder"
-  report_tasks = false
-  cli_app      = true
+  display_name = "Run after OpenCode install"
+  run_on_start = true
+  script       = <<-EOT
+    #!/usr/bin/env bash
+    set -euo pipefail
+    trap 'coder exp sync complete post-opencode' EXIT
+    coder exp sync want post-opencode ${join(" ", module.opencode.scripts)}
+    coder exp sync start post-opencode
+
+    opencode --version
+  EOT
+}
+```
+
+## Configuration
+
+`auth_json` takes the output of `opencode auth export`. See [OpenCode providers](https://opencode.ai/v2/docs/cli/providers/).
+
+```tf
+module "opencode" {
+  source    = "registry.coder.com/coder-labs/opencode/coder"
+  version   = "1.0.0"
+  agent_id  = coder_agent.main.id
+  auth_json = <<-EOF
+  [
+    {
+      "id": "coder-anthropic",
+      "integrationID": "anthropic",
+      "label": "coder",
+      "active": true,
+      "value": {
+        "type": "key",
+        "key": "${var.anthropic_api_key}"
+      }
+    }
+  ]
+  EOF
 }
 ```
 
 ## Troubleshooting
 
-If you encounter any issues, check the log files in the `~/.opencode-module` directory within your workspace for detailed information.
+Check the log files in `~/.coder-modules/coder-labs/opencode/logs/` for detailed information.
+
+```bash
+cat ~/.coder-modules/coder-labs/opencode/logs/install.log
+cat ~/.coder-modules/coder-labs/opencode/logs/pre_install.log
+cat ~/.coder-modules/coder-labs/opencode/logs/post_install.log
+```
 
 ## References
 
-- [Opencode JSON Config](https://opencode.ai/docs/config/)
-- [OpenCode Documentation](https://opencode.ai/docs)
-- [AgentAPI Documentation](https://github.com/coder/agentapi)
-- [Coder AI Agents Guide](https://coder.com/docs/tutorials/ai-agents)
+- [OpenCode documentation](https://opencode.ai/v2/docs/)
+- [OpenCode config](https://opencode.ai/v2/docs/config/)
+- [OpenCode MCP servers](https://opencode.ai/v2/docs/mcp-servers/)
+- [OpenCode CLI](https://opencode.ai/v2/docs/cli/)
+- [Migrate from V1](https://opencode.ai/v2/docs/migrate-v1/)
