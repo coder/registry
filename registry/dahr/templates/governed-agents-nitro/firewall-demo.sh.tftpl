@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+# Firewall demo: test where an agent in this workspace can connect.
+#
+# Runs sample requests from the workspace. A failed request alone cannot
+# identify which layer blocked it; check proxy and cluster logs.
+#
+#   /etc/governed-agents/firewall-demo.sh
+#
+# Rendered by Terraform from firewall-demo.sh.tftpl.
+
+set -u
+
+ORG="${github_org}"
+BUCKET="${bucket}"
+KIRO_RUNTIME="${kiro_runtime_host}"
+
+# probe LABEL CURL_ARGS... prints "LABEL|VERDICT".
+probe() {
+	local label="$1"
+	shift
+	local out rc code conn verdict
+	out="$(curl -s -o /dev/null --connect-timeout 3 -m 10 -w '%%{http_code} %%{http_connect}' "$@" 2> /dev/null)"
+	rc=$?
+	code="$${out%% *}"
+	conn="$${out##* }"
+	if [ "$conn" = 403 ]; then
+		verdict="BLOCKED  egress proxy (name not in this workspace's bundles)"
+	elif [ "$conn" = 200 ] && [ "$code" = 000 ]; then
+		# The proxy opened the tunnel, but the remote connection failed.
+		# Check external egress logs before assigning a cause.
+		verdict="ERROR    proxy tunnel opened, remote connection failed (curl exit $rc)"
+	elif [ "$code" = 000 ] || [ "$rc" = 7 ] || [ "$rc" = 28 ]; then
+		verdict="ERROR    connection failed (check NetworkPolicy and egress logs)"
+	elif [ "$code" = 401 ] || [ "$code" = 403 ]; then
+		verdict="REACHED  HTTP $code: only credentials stop it"
+	else
+		verdict="ALLOWED  HTTP $code"
+	fi
+	printf '%s|%s\n' "$label" "$verdict"
+}
+
+# s3probe LABEL ARGS... runs the AWS CLI and prints "LABEL|VERDICT".
+s3probe() {
+	local label="$1" out
+	shift
+	if ! command -v aws > /dev/null || [ -z "$BUCKET" ] || [ -z "$${AWS_REGION:-}" ]; then
+		printf '%s|%s\n' "$label" "n/a      no AWS identity in this profile"
+		return
+	fi
+	if out="$(timeout 20 aws "$@" 2>&1)"; then
+		printf '%s|%s\n' "$label" "ALLOWED  IAM allows its own folder"
+	elif echo "$out" | grep -q -E "AccessDenied|Forbidden|403"; then
+		printf '%s|%s\n' "$label" "BLOCKED  IAM (Pod Identity session tags)"
+	else
+		printf '%s|%s\n' "$label" "ERROR    $(echo "$out" | tail -1 | cut -c1-40)"
+	fi
+}
+
+# imdsprobe LABEL asks instance metadata for IAM credentials. A Nitro Sandbox
+# answers metadata inside its own VM with placement only, so the node role is
+# out of reach even though the address answers.
+imdsprobe() {
+	local label="$1" token code
+	token="$(curl -s --noproxy '*' --connect-timeout 3 -m 5 -X PUT -H 'X-aws-ec2-metadata-token-ttl-seconds: 60' http://169.254.169.254/latest/api/token 2> /dev/null)"
+	if [ -z "$token" ]; then
+		printf '%s|%s\n' "$label" "BLOCKED  metadata token request (check network policy)"
+		return
+	fi
+	code="$(curl -s --noproxy '*' -o /dev/null -m 5 -w '%%{http_code}' -H "X-aws-ec2-metadata-token: $token" http://169.254.169.254/latest/meta-data/iam/security-credentials/ 2> /dev/null)"
+	if [ "$code" = 200 ]; then
+		printf '%s|%s\n' "$label" "EXPOSED  node role credentials"
+	else
+		printf '%s|%s\n' "$label" "NO ROLE  instance metadata returned HTTP $code"
+	fi
+}
+
+run_probes() {
+	echo "##AI models"
+	probe "Claude via AI Gateway (Coder)" -H "Authorization: Bearer $${ANTHROPIC_AUTH_TOKEN:-}" -H 'anthropic-version: 2023-06-01' "$${ANTHROPIC_BASE_URL:-$${CODER_AGENT_URL%/}/api/v2/ai-gateway/anthropic}/v1/models"
+	probe "Anthropic API directly" https://api.anthropic.com/v1/models
+	if [ -n "$KIRO_RUNTIME" ]; then
+		probe "Kiro service" "https://$KIRO_RUNTIME/"
+		probe "Kiro self-update download" https://prod.download.cli.kiro.dev/
+	fi
+	echo "##GitHub"
+	probe "Read a public repository" https://api.github.com/repos/coder/coder
+	if [ -n "$ORG" ]; then
+		probe "Open an issue in $ORG/*" -X POST -H 'Content-Type: application/json' -d '{"title":"firewall demo"}' "https://api.github.com/repos/$ORG/firewall-demo/issues"
+	fi
+	probe "Create a public gist" -X POST -H 'Content-Type: application/json' -d '{"files":{"x.txt":{"content":"secret"}}}' https://api.github.com/gists
+	echo "##Package registries"
+	probe "npm: download a package" https://registry.npmjs.org/left-pad
+	probe "PyPI: download a package" https://pypi.org/simple/requests/
+	echo "##Internet and cloud"
+	probe "example.com (unapproved demo bundle)" https://example.com/
+	probe "pastebin.com (no bundle)" https://pastebin.com/
+	probe "Raw IP, ignoring the proxy" --noproxy '*' https://1.1.1.1/
+	imdsprobe "EC2 instance metadata: node credentials"
+	probe "Kubernetes API server" --noproxy '*' -k "https://$${KUBERNETES_SERVICE_HOST:-10.100.0.1}:$${KUBERNETES_SERVICE_PORT:-443}/version"
+	s3probe "S3: list this workspace's folder" s3api list-objects-v2 --bucket "$BUCKET" --prefix "workspaces/$${ARTIFACTS_URI##*/workspaces/}" --max-items 1
+	s3probe "S3: read another workspace's file" s3 cp "s3://$BUCKET/workspaces/canary/DO-NOT-READ.txt" -
+}
+
+echo "Running the probes from this workspace..."
+printf '\n%-40s %s\n' "Request" "Result"
+printf '%-40s %s\n' "-------" "------"
+run_probes | while IFS= read -r line; do
+	case "$line" in
+		"##"*)
+			printf '\n%s\n' "$${line#\#\#}"
+			continue
+			;;
+	esac
+	printf '%-40s %s\n' "$${line%%|*}" "$${line#*|}"
+done
+
+cat << 'EOF'
+
+Where to see each layer:
+  Egress proxy       kubectl -n <namespace> logs deploy/coder-<workspace id>-proxy
+  Network Firewall   Check your firewall logs, if configured.
+  DNS                Check your resolver logs, if configured.
+  NetworkPolicy      VPC CNI policy decision logs on the node, when enabled.
+  IAM                CloudTrail, by the kubernetes-service-account session tag.
+  Models             Coder: AI Gateway > Sessions
+EOF
