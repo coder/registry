@@ -260,6 +260,11 @@ function authenticate_codex() {
 }
 
 install_codex
+if [ "$(uname -s)" = "Linux" ] && ! command_exists bwrap; then
+  echo "Warning: Linux sandbox prerequisite bubblewrap (bwrap) was not found on PATH." >&2
+  echo "Install the distribution's bubblewrap package in the workspace image or template. Codex's bundled fallback requires unprivileged user namespaces." >&2
+  echo "See https://developers.openai.com/codex/concepts/sandboxing#prerequisites for OS-specific setup, including Ubuntu 24.04 AppArmor profiles." >&2
+fi
 populate_config_toml
 setup_workdir
 authenticate_codex
