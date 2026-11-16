@@ -41,7 +41,7 @@ module "nodejs" {
 
 ## Pre and Post Install Scripts
 
-Use `pre_install_script` and `post_install_script` to run custom scripts before and after Node.js is installed. They are orchestrated with the [`coder-utils`](https://registry.coder.com/modules/coder/coder-utils) module, which runs them in order via `coder exp sync`.
+Use `pre_install_script` and `post_install_script` to run custom scripts before and after Node.js is installed. They are orchestrated with the [`coder-utils`](https://registry.coder.com/modules/coder/lib-coder-utils) module, which runs them in order via `coder exp sync`.
 
 > [!NOTE]
 > Node.js is installed via nvm, which only loads automatically in interactive login shells. `post_install_script` runs in a fresh non-interactive shell, so source nvm first to put `node` and `npm` on `PATH`. nvm is installed at `$HOME/<nvm_install_prefix>/nvm` (default `$HOME/.nvm/nvm`).
