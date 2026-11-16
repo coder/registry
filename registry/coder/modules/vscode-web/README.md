@@ -14,7 +14,7 @@ Automatically install [Visual Studio Code Server](https://code.visualstudio.com/
 module "vscode-web" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/vscode-web/coder"
-  version        = "1.6.2"
+  version        = "2.0.0"
   agent_id       = coder_agent.example.id
   accept_license = true
 }
@@ -24,13 +24,42 @@ module "vscode-web" {
 
 ## Examples
 
+### Keep extension secrets across browser reloads
+
+Enable the official VS Code CLI's `serve-web` launcher on glibc-based Linux or macOS (x64/arm64) to provide encrypted browser secret storage. The existing `serve-local` launcher remains the default. CLI mode currently excludes Alpine. Linux uses the official tar archives; macOS uses the official ZIP archives with the system's `unzip` and BSD `tar`.
+
+```tf
+module "vscode-web" {
+  count          = data.coder_workspace.me.start_count
+  source         = "registry.coder.com/coder/vscode-web/coder"
+  version        = "2.0.0"
+  agent_id       = coder_agent.example.id
+  accept_license = true
+  use_cli        = true
+  subdomain      = true
+  folder         = "/home/coder/project"
+}
+```
+
+Use a Coder deployment with wildcard application URLs and HTTPS. Each workspace needs its own application subdomain because browser secrets are scoped to an origin. The CLI does not forward `disable_trust`, `extensions_dir`, or `platform` overrides; enabling CLI mode with any of these options fails validation instead of silently ignoring them. Workspace trust remains enabled.
+
+The server's encryption key, version marker, and server cache live under `$HOME/.coder-modules/coder/vscode-web/`. Persist that directory along with the workspace home. Secrets also depend on the browser's site data: deleting that data, losing the server key, or changing the app origin requires signing in again. Existing in-memory sessions are not migrated when switching launch modes.
+
+CLI mode installs its executable under the module directory by default; a custom `install_prefix` changes the executable location. Installation and startup diagnostics are in `logs/install.log` and `logs/start.log` under the module directory. The running server writes to `logs/serve-web.log`, or to a custom `log_path` when supplied. Settings and extensions continue to use `$HOME/.vscode-server`.
+
+With `use_cached = true`, the recorded version is reused unless `commit_id` selects another version. Offline mode requires both the matching CLI and server to have been installed previously, and cannot install extensions. An explicit commit ID pins both downloads. The server is prepared in the CLI's commit-based cache so existing settings and extension installation can be reused without introducing a second installation pipeline.
+
+#### Upgrading from 1.x
+
+Version 2.x requires the Coder Terraform provider **2.13 or later** for `coder-utils`, including when CLI mode is disabled. Terraform **1.2 or later** is required for resource preconditions. The default launcher and its existing options remain unchanged. Terraform migrates the existing startup resource address automatically.
+
 ### Install VS Code Web to a custom folder
 
 ```tf
 module "vscode-web" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/vscode-web/coder"
-  version        = "1.6.2"
+  version        = "2.0.0"
   agent_id       = coder_agent.example.id
   install_prefix = "/home/coder/.vscode-web"
   folder         = "/home/coder"
@@ -44,7 +73,7 @@ module "vscode-web" {
 module "vscode-web" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/vscode-web/coder"
-  version        = "1.6.2"
+  version        = "2.0.0"
   agent_id       = coder_agent.example.id
   extensions     = ["github.copilot", "ms-python.python", "ms-toolsai.jupyter"]
   accept_license = true
@@ -59,7 +88,7 @@ Configure VS Code's [Machine settings.json](https://code.visualstudio.com/docs/g
 module "vscode-web" {
   count      = data.coder_workspace.me.start_count
   source     = "registry.coder.com/coder/vscode-web/coder"
-  version    = "1.6.2"
+  version    = "2.0.0"
   agent_id   = coder_agent.example.id
   extensions = ["dracula-theme.theme-dracula"]
   settings = {
@@ -80,7 +109,7 @@ By default, this module installs the latest. To pin a specific version, retrieve
 module "vscode-web" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/vscode-web/coder"
-  version        = "1.6.2"
+  version        = "2.0.0"
   agent_id       = coder_agent.example.id
   commit_id      = "e54c774e0add60467559eb0d1e229c6452cf8447"
   accept_license = true
@@ -96,7 +125,7 @@ Note: Either `workspace` or `folder` can be used, but not both simultaneously. T
 module "vscode-web" {
   count     = data.coder_workspace.me.start_count
   source    = "registry.coder.com/coder/vscode-web/coder"
-  version   = "1.6.2"
+  version   = "2.0.0"
   agent_id  = coder_agent.example.id
   workspace = "/home/coder/coder.code-workspace"
 }

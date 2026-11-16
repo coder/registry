@@ -40,3 +40,142 @@ run "invalid_open_in" {
     var.open_in,
   ]
 }
+
+run "cli_scripts_and_healthcheck" {
+  command = plan
+  variables {
+    agent_id       = "foo"
+    accept_license = true
+    use_cli        = true
+  }
+  assert {
+    condition     = length(coder_script.vscode-web) == 0 && length(module.cli) == 1
+    error_message = "CLI mode must replace the legacy startup script."
+  }
+  assert {
+    condition     = local.healthcheck_url == "http://localhost:13338/"
+    error_message = "The CLI proxy must be probed at its root route."
+  }
+  assert {
+    condition     = length(output.scripts) == 2
+    error_message = "CLI mode must expose installation and startup synchronization names."
+  }
+}
+
+run "legacy_path_routing" {
+  command = plan
+  variables {
+    agent_id       = "foo"
+    accept_license = true
+    subdomain      = false
+    disable_trust  = true
+    extensions_dir = "/home/coder/custom extensions"
+  }
+  assert {
+    condition     = length(coder_script.vscode-web) == 1 && length(module.cli) == 0
+    error_message = "Existing configurations must retain the legacy launch mode."
+  }
+}
+
+run "cli_rejects_shared_origin" {
+  command = plan
+  variables {
+    agent_id       = "foo"
+    accept_license = true
+    use_cli        = true
+    subdomain      = false
+  }
+  expect_failures = [coder_app.vscode-web]
+}
+
+run "cli_rejects_disable_trust" {
+  command = plan
+  variables {
+    agent_id       = "foo"
+    accept_license = true
+    use_cli        = true
+    disable_trust  = true
+  }
+  expect_failures = [coder_app.vscode-web]
+}
+
+run "cli_rejects_invalid_commit" {
+  command = plan
+  variables {
+    agent_id       = "foo"
+    accept_license = true
+    use_cli        = true
+    commit_id      = "not-a-commit"
+  }
+  expect_failures = [coder_app.vscode-web]
+}
+
+run "cli_rejects_offline_recommendations" {
+  command = plan
+  variables {
+    agent_id                = "foo"
+    accept_license          = true
+    use_cli                 = true
+    offline                 = true
+    auto_install_extensions = true
+  }
+  expect_failures = [coder_app.vscode-web]
+}
+
+run "cli_rejects_extensions_dir" {
+  command = plan
+  variables {
+    agent_id       = "foo"
+    accept_license = true
+    use_cli        = true
+    extensions_dir = "/custom"
+  }
+  expect_failures = [coder_app.vscode-web]
+}
+
+run "cli_rejects_platform" {
+  command = plan
+  variables {
+    agent_id       = "foo"
+    accept_license = true
+    use_cli        = true
+    platform       = "linux"
+  }
+  expect_failures = [coder_app.vscode-web]
+}
+
+run "cli_rejects_offline_extensions" {
+  command = plan
+  variables {
+    agent_id       = "foo"
+    accept_license = true
+    use_cli        = true
+    offline        = true
+    extensions     = ["publisher.extension"]
+  }
+  expect_failures = [coder_app.vscode-web]
+}
+
+run "cli_rejects_offline_and_cached" {
+  command = plan
+  variables {
+    agent_id       = "foo"
+    accept_license = true
+    use_cli        = true
+    offline        = true
+    use_cached     = true
+  }
+  expect_failures = [coder_app.vscode-web]
+}
+
+run "cli_rejects_folder_and_workspace" {
+  command = plan
+  variables {
+    agent_id       = "foo"
+    accept_license = true
+    use_cli        = true
+    folder         = "/project"
+    workspace      = "/project.code-workspace"
+  }
+  expect_failures = [coder_app.vscode-web]
+}

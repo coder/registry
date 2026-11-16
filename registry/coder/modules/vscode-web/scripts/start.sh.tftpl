@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+MODULE_DIR="$HOME/.coder-modules/coder/vscode-web"
+INSTALL_DIR=$(printf '%s' '${INSTALL_PREFIX_B64}' | base64 -d)
+INSTALL_DIR="$${INSTALL_DIR:-$MODULE_DIR}"
+LOG_PATH=$(printf '%s' '${LOG_PATH_B64}' | base64 -d)
+LOG_PATH="$${LOG_PATH:-$MODULE_DIR/logs/serve-web.log}"
+COMMIT=$(cat "$MODULE_DIR/commit")
+CLI="$INSTALL_DIR/bin/code-$COMMIT"
+
+args=(serve-web --host 127.0.0.1 --port '${PORT}'
+  --accept-server-license-terms --without-connection-token
+  --cli-data-dir "$MODULE_DIR/cli" --commit-id "$COMMIT"
+  --server-data-dir "$HOME/.vscode-server" --telemetry-level '${TELEMETRY_LEVEL}')
+if [ '${TELEMETRY_LEVEL}' = off ]; then args+=(--disable-telemetry); fi
+
+if (exec 3<>/dev/tcp/127.0.0.1/${PORT}) 2>/dev/null; then
+  echo "Port ${PORT} is already in use; stop the existing server before starting VS Code Web." >&2
+  exit 1
+fi
+
+mkdir -p "$(dirname "$LOG_PATH")"
+"$CLI" "$${args[@]}" > "$LOG_PATH" 2>&1 &
+server_pid=$!
+
+# Release coder-utils dependants only after the proxy is reachable.
+for ((attempt = 0; attempt < 30; attempt++)); do
+  if ! kill -0 "$server_pid" 2>/dev/null; then
+    echo "VS Code Web exited during startup. See $LOG_PATH" >&2
+    cat "$LOG_PATH" >&2
+    exit 1
+  fi
+  if curl --fail --silent --output /dev/null --max-time 1 'http://127.0.0.1:${PORT}/'; then
+    echo "VS Code Web is ready. See $LOG_PATH"
+    exit 0
+  fi
+  sleep 1
+done
+
+echo "VS Code Web did not become ready within 30 startup checks. See $LOG_PATH" >&2
+kill "$server_pid"
+exit 1
