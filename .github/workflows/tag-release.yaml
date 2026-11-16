@@ -1,0 +1,95 @@
+# Tags module releases: release/<namespace>/<module>/vX.Y.Z for each module whose README version
+# has no tag yet, at the last commit on main that changed the module (scripts/tag_release.sh).
+#
+# Only the coder-registry-publisher App may create, move or delete tags (ruleset "Release tags (App
+# only)"), and its key is only available in the release-tags environment, which needs a registry
+# maintainer other than the one who dispatched this run to approve it. The plan job lists the tags
+# in the run summary for the approver; the tag job creates exactly those, from the same commit.
+name: Tag releases
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency: ${{ github.workflow }}
+
+jobs:
+  plan:
+    name: Plan tags
+    # The release-tags environment only accepts main.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      count: ${{ steps.plan.outputs.count }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The script finds the last commit that changed each module in the full history.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: List tags to create
+        id: plan
+        run: |
+          set -euo pipefail
+          count="$(./scripts/tag_release.sh --dry-run --format json | jq '[.modules[] | select(.already_existed == false)] | length')"
+          echo "count=${count}" >> "${GITHUB_OUTPUT}"
+          {
+            echo "### Tags to create from \`${GITHUB_SHA}\`"
+            echo
+            if [[ "${count}" == 0 ]]; then
+              echo "None: every module version is already tagged."
+            else
+              ./scripts/tag_release.sh --dry-run | sed -n '/^## Tags to be created:/,/^$/p' | tail -n +2
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  tag:
+    name: Create tags
+    needs: plan
+    if: needs.plan.outputs.count != '0'
+    runs-on: ubuntu-latest
+    environment: release-tags
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check the plan still holds
+        env:
+          PLANNED: ${{ needs.plan.outputs.count }}
+        run: |
+          set -euo pipefail
+          count="$(./scripts/tag_release.sh --dry-run --format json | jq '[.modules[] | select(.already_existed == false)] | length')"
+          if [[ "${count}" != "${PLANNED}" ]]; then
+            echo "::error::Planned ${PLANNED} tags but would now create ${count}; dispatch a new run."
+            exit 1
+          fi
+
+      - name: Generate registry App token
+        id: app_token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.CODER_REGISTRY_PUBLISHER_APP_ID }}
+          private-key: ${{ secrets.CODER_REGISTRY_PUBLISHER_APP_PRIVATE_KEY }}
+          owner: coder
+          repositories: registry
+          permission-contents: write
+          permission-workflows: write
+
+      - name: Create and push tags
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+          APP_SLUG: ${{ steps.app_token.outputs.app-slug }}
+        run: |
+          set -euo pipefail
+          user_id="$(gh api "/users/${APP_SLUG}[bot]" --jq .id)"
+          git config user.name "${APP_SLUG}[bot]"
+          git config user.email "${user_id}+${APP_SLUG}[bot]@users.noreply.github.com"
+          gh auth setup-git
+          ./scripts/tag_release.sh --auto-approve

@@ -44,69 +44,34 @@ go build ./cmd/readmevalidation && ./readmevalidation
 
 ## Making a Release
 
-### Automated Tag and Release Process
+Release tags (`release/<namespace>/<module>/vX.Y.Z`) are created only by the
+`coder-registry-publisher` GitHub App, through the **Tag releases** workflow. Nobody can push,
+move or delete tags by hand, admins included. Every tag points at a commit on `main`, so every
+published version went through a reviewed pull request.
 
-After merging a PR, use the automated script to create and push release tags:
+After merging PRs that bump module versions in their READMEs (the source of truth):
 
-**Prerequisites:**
-
-- Ensure all module versions are updated in their respective README files (the script uses this as the source of truth)
-- Make sure you have the necessary permissions to push tags to the repository
-
-**Steps:**
-
-1. **Update main** (needs a full clone, not a shallow one):
+1. Dispatch the workflow from `main`:
 
    ```bash
-   git checkout main && git pull
+   gh workflow run tag-release.yaml --repo coder/registry --ref main
    ```
 
-2. **Run the tag release script:**
+   or Actions > Tag releases > Run workflow.
 
-   ```bash
-   ./scripts/tag_release.sh
-   ```
+2. The **Plan tags** job lists the tags it will create, with the commit each points at, in the
+   run summary. Each tag points at the latest merge commit that changed that module, not at HEAD.
 
-3. **Review and confirm:**
-   - The script will automatically scan all modules in the registry
-   - It will detect which modules need version bumps by comparing README versions to existing tags
-   - A summary will be displayed showing which modules need tagging
-   - Confirm the list is correct when prompted
+3. Another registry maintainer (`@coder/registry-maintainers`; you can't approve your own run)
+   checks the list and approves the `release-tags` deployment. The **Create tags** job then creates
+   exactly those tags.
 
-4. **Automatic tagging:**
-   - After confirmation, the script will automatically create all necessary release tags
-   - Tags will be pushed to the remote repository
-   - Each tag points at the latest merge commit that changed that module, not at HEAD
-
-**Example output:**
-
-```text
-🔍 Scanning all modules for missing release tags...
-
-📦 coder/code-server: v4.1.2 (needs tag)
-✅ coder/dotfiles: v1.0.5 (already tagged)
-
-## Tags to be created:
-- `release/coder/code-server/v4.1.2` -> 1a2b3c4d
-
-❓ Do you want to proceed with creating and pushing these release tags?
-Continue? [y/N]: y
-```
-
-### Manual Process (Fallback)
-
-If the automated script fails, you can manually tag and release modules:
+To preview locally (needs a full clone, not a shallow one):
 
 ```bash
-# Checkout the merge commit
-git checkout MERGE_COMMIT_ID
-
-# Create and push the release tag using the version from the PR
-git tag -a "release/$namespace/$module/v$version" -m "Release $namespace/$module v$version"
-git push origin release/$namespace/$module/v$version
+git checkout main && git pull
+./scripts/tag_release.sh --dry-run
 ```
-
-Example: If PR shows `v1.2.3 → v1.2.4`, use `v1.2.4` in the tag.
 
 ### Publishing
 
