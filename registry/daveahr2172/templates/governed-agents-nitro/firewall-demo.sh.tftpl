@@ -76,7 +76,10 @@ imdsprobe() {
 
 run_probes() {
 	echo "##AI models"
-	probe "Claude via AI Gateway (Coder)" -H "Authorization: Bearer $${ANTHROPIC_AUTH_TOKEN:-}" -H 'anthropic-version: 2023-06-01' "$${ANTHROPIC_BASE_URL:-$${CODER_AGENT_URL%/}/api/v2/ai-gateway/anthropic}/v1/models"
+	# A one-token model call: Bedrock providers serve /v1/messages only.
+	probe "Claude via AI Gateway (Coder)" -H "Authorization: Bearer $${ANTHROPIC_AUTH_TOKEN:-}" -H 'anthropic-version: 2023-06-01' -H 'content-type: application/json' \
+		-d '{"model":"claude-haiku-5-5","max_tokens":1,"messages":[{"role":"user","content":"ok"}]}' \
+		"$${ANTHROPIC_BASE_URL:-$${CODER_AGENT_URL%/}/api/v2/ai-gateway/anthropic}/v1/messages"
 	probe "Anthropic API directly" https://api.anthropic.com/v1/models
 	if [ -n "$KIRO_RUNTIME" ]; then
 		probe "Kiro service" "https://$KIRO_RUNTIME/"

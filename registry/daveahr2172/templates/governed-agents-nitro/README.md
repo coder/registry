@@ -18,7 +18,7 @@ Kernel isolation and network isolation are separate layers. A Nitro Sandbox does
 
 ### Kernel isolation
 
-When `sandbox_runtime_class` is `isolated-sandbox`, the workspace Pod sets that RuntimeClass. On EKS Auto Mode, the Pod then runs in a Nitro Sandbox, so code in the workspace does not share a kernel with the node or with other Pods. The VM gets its CPU and memory at boot from the Pod requests, so a Nitro workspace requests its full size of 2 vCPUs and 4 GiB. The variable also accepts other RuntimeClass names, such as `kata-qemu` or `gvisor`. When the value is empty, the Pod uses the node's default runtime and shares the node kernel.
+When `sandbox_runtime_class` is `isolated-sandbox`, the workspace Pod sets that RuntimeClass. On EKS Auto Mode, the Pod then runs in a Nitro Sandbox, so code in the workspace does not share a kernel with the node or with other Pods. The VM gets its CPU and memory at boot from the Pod requests, so a Nitro workspace requests its full size of 2 vCPUs and 4 GiB. When the value is empty, the Pod uses the node's default runtime and shares the node kernel.
 
 The workspace container runs as UID 1000 with no Linux capabilities, no privilege escalation, the `RuntimeDefault` seccomp profile, and no Kubernetes service account token.
 
@@ -27,7 +27,7 @@ The workspace container runs as UID 1000 with no Linux capabilities, no privileg
 1. **NetworkPolicy.** The workspace Pod accepts no inbound connections. It can connect out only to the Coder access URL addresses in `coder_egress_cidrs`, its own egress proxy, and the EKS Pod Identity Agent when it has an AWS identity. Your CNI must enforce NetworkPolicy, or this layer does nothing.
 2. **No DNS.** The Pod's only name server is `127.0.0.1`, so lookups fail. The template writes the access URL host name to `/etc/hosts` from `coder_host_ip`. The proxy resolves all other names.
 3. **Egress proxy.** Squid runs in a separate Pod for each workspace. It accepts only HTTPS `CONNECT` requests to port 443 for the host names in the chosen bundles. It refuses names that resolve to private or link-local addresses, does not decrypt TLS, and logs each request to its container output. Its own NetworkPolicy accepts traffic only from its workspace and allows out only public IPv4 addresses on port 443, plus DNS to the configured servers.
-4. **Policy gate.** The Coder agent waits until it cannot connect to the Kubernetes API server. The check then runs every 5 seconds and stops the container if the API server becomes reachable. If the API server remains reachable for 60 seconds, the container exits. This is a useful signal, not proof that every network rule works.
+4. **Policy gate.** The Coder agent waits until 3 connections in a row to the Kubernetes API server fail, each with a 1 second timeout, so one slow connection cannot open the gate. The check then runs every 5 seconds and stops the container if the API server becomes reachable. If the API server remains reachable for 60 seconds, the container exits. This is a useful signal, not proof that every network rule works.
 5. **Upstream firewall (optional).** Set `node_pool` to the `key=value` label of a node group whose subnets send traffic through a firewall that you run, such as AWS Network Firewall. Workspace and proxy Pods then select those nodes and tolerate a `NoSchedule` taint with the same key and value. The template does not create or check that firewall.
 
 The proxy Pod does not use the sandbox RuntimeClass. It runs on the node's normal container runtime as UID 31, with a read-only root filesystem and no capabilities.
@@ -52,7 +52,7 @@ The **Agent profile** is set at create and cannot change later. Each profile is 
 
 ## Allowed destinations
 
-In the first two profiles, **Allowed destinations** picks bundles of reviewed host names for the proxy. The template offers bundles for GitHub, npm, PyPI, and Go modules, the Kiro CLI in the Claude Code and Kiro profile, and a demo bundle that opens `example.com`. GitHub is on by default, and so is Kiro where it is offered. A value that is not offered for the profile is ignored. The host names for each bundle are in `local.egress_bundles` in `main.tf`. To add one, add an entry there.
+In the first two profiles, **Allowed destinations** picks bundles of reviewed host names for the proxy. The template offers bundles for GitHub, npm, PyPI, and Go modules, the Kiro CLI in the Claude Code and Kiro profile, and a demo bundle that opens `example.com`. GitHub is on by default. Kiro is opt-in, because it sends model traffic outside AI Gateway. The form offers only the bundles of the chosen profile; a bundle the profile does not offer, passed from the CLI, fails the build. The host names for each bundle are in `local.egress_bundles` in `main.tf`. To add one, add an entry there.
 
 You can change the bundles later in the workspace settings. The next start applies them: a checksum annotation on the proxy Pod restarts Squid with the new list. `extra_allowed_hosts` adds host names to every workspace that has a proxy.
 
@@ -76,7 +76,7 @@ Workspaces reach Coder by IP address only. Give the access URL static IPv4 addre
 
 ### Provisioner access
 
-The provisioner reaches the workspace cluster in one of three ways: in-cluster credentials when Coder runs in the same cluster, `~/.kube/config` with `use_kubeconfig`, or `kube_host`, `kube_ca_certificate`, and `kube_token` for a separate cluster.
+The provisioner reaches the workspace cluster with in-cluster credentials when Coder runs in the same cluster, or with `~/.kube/config` when `use_kubeconfig` is true.
 
 The namespace must already exist. Label it for Pod Security `restricted`; both Pods meet that profile. The provisioner identity needs a Role in the namespace that covers every object the template manages, for example:
 
@@ -137,7 +137,7 @@ Then push from this directory:
 coder templates push governed-agents-nitro -d . --variables-file ~/governed-agents-nitro.yaml
 ```
 
-If the provisioner uses `kube_token`, add it to this file only on the machine you push from. Set its permissions to `600` and do not commit it.
+Variables you leave out of the file keep their value from the previous version. To clear one, pass it explicitly, for example `--variable shared_service_account=`.
 
 Prebuilds need Coder Premium. By default each of the three presets keeps one prebuilt workspace running; set `prebuild_instances` to `0` to turn them off.
 
@@ -147,8 +147,9 @@ Prebuilds need Coder Premium. By default each of the three presets keeps one pre
 - **Without an upstream firewall,** the proxy connects from the node to any public IPv4 address that an allowed name resolves to. There is no second allowlist and no DNS filtering beyond your resolver, so the demo bundle reaches `example.com`. Setting `node_pool` only schedules on labeled nodes. It does not configure or verify network routing.
 - **The proxy is not in a Nitro Sandbox.** It shares the node kernel with other Pods on its node. Its NetworkPolicy and Squid configuration limit what it accepts and where it connects.
 - **NetworkPolicy depends on the CNI.** The policy gate checks only that the Kubernetes API server is unreachable. It does not prove every rule is in force.
-- **The scoped token is not limited to AI Gateway.** A `user:read_personal` token also works with other Coder API endpoints that allow that scope, from any network that reaches Coder. Any process in the workspace can read it. It lives for `ai_gateway_token_lifetime_hours`, Coder does not revoke it on stop, and each start creates a new one. Keep the lifetime close to the template's autostop time. The `session` mode token has full API access for the owner, but Coder deletes it on stop.
-- **Kiro bypasses AI Gateway.** AI Gateway does not record Kiro prompts. The proxy log records Kiro's connections.
+- **The scoped token is not limited to AI Gateway.** A `user:read_personal` token also works with other Coder API endpoints that allow that scope, from any network that reaches Coder. Any process in the workspace can read it. Each start revokes the workspace's earlier tokens with the `coder` CLI on the provisioner, so only the newest is valid. Coder gives stop builds no owner credentials, so the last token stays valid for up to `ai_gateway_token_lifetime_hours` (8 by default) after the workspace stops. Keep the lifetime close to the template's autostop time. Like the owner session token, the scoped token is stored unencrypted in Terraform state, which template admins can read. The `session` mode token has full API access for the owner, but Coder deletes it on stop.
+- **Kiro bypasses AI Gateway.** AI Gateway does not record Kiro prompts, so its bundle is opt-in. The proxy log records Kiro's connections.
+- **AWS credentials work outside your network.** Pod Identity credentials are ordinary temporary credentials. If an agent copied them to an allowed host that accepts uploads, they would work from anywhere until they expire. Add a condition to the workspace role's policy: `aws:SourceVpce` with your S3 gateway endpoint's ID for S3, or `aws:SourceIp` with your NAT gateway addresses for services reached through it. `aws:SourceVpc` and `aws:SourceVpce` are set only on requests through a VPC endpoint.
 - **HTTPS on port 443 only.** SSH, plain HTTP, and other ports do not work through the proxy. Use Git over HTTPS. IPv4 only.
 - **Fixed size in a Nitro Sandbox.** CPU and memory are set at boot. Check allocatable resources on your sandbox nodes before you change the size in `main.tf`.
 

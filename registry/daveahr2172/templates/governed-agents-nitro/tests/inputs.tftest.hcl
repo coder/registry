@@ -140,3 +140,80 @@ run "accepts_public_hosts_and_dns" {
     error_message = "Valid host names and DNS servers must reach the proxy configuration."
   }
 }
+
+run "rejects_squid_directive_in_region" {
+  command = plan
+  variables {
+    aws_region = "us-east-1\nhttp_access allow all"
+  }
+  expect_failures = [var.aws_region]
+}
+
+run "kiro_is_opt_in" {
+  command = plan
+
+  override_data {
+    target = data.coder_parameter.profile
+    values = { value = "workspace-agents" }
+  }
+
+  assert {
+    condition     = contains(keys(local.offered_bundles), "kiro") && !contains(local.default_egress_bundles, "kiro")
+    error_message = "Kiro sends model traffic outside AI Gateway, so its bundle must be offered but not chosen by default."
+  }
+}
+
+run "start_revokes_earlier_tokens_before_minting" {
+  command = plan
+
+  override_data {
+    target = data.coder_workspace.me
+    values = {
+      id          = "00000000-0000-4000-8000-000000000001"
+      name        = "test"
+      access_url  = "https://203.0.113.10"
+      start_count = 1
+      transition  = "start"
+      is_prebuild = false
+    }
+  }
+  override_data {
+    target = data.coder_workspace_owner.me
+    values = {
+      id            = "00000000-0000-4000-8000-000000000002"
+      name          = "tester"
+      session_token = "owner-session-token"
+    }
+  }
+  override_data {
+    target = data.coder_parameter.profile
+    values = { value = "workspace-agents" }
+  }
+  override_data {
+    target = data.coder_parameter.egress_bundles
+    values = { value = "[\"github\"]" }
+  }
+  override_module {
+    target  = module.code-server
+    outputs = {}
+  }
+
+  assert {
+    condition     = length(terraform_data.revoke_ai_gateway_tokens) == 1 && length(data.http.ai_gateway_token) == 1 && var.ai_gateway_token_lifetime_hours == 8
+    error_message = "A start must revoke the workspace's earlier tokens and mint one with an 8 hour default lifetime."
+  }
+}
+
+run "stop_mints_no_token" {
+  command = plan
+
+  override_data {
+    target = data.coder_parameter.profile
+    values = { value = "workspace-agents" }
+  }
+
+  assert {
+    condition     = length(terraform_data.revoke_ai_gateway_tokens) == 0 && length(data.http.ai_gateway_token) == 0 && length(coder_env.anthropic_auth_token) == 0
+    error_message = "A stop has no owner credentials, so it must mint no token and pass none to the workspace."
+  }
+}

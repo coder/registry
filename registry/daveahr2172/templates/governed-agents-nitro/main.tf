@@ -66,30 +66,6 @@ variable "use_kubeconfig" {
   default     = false
 }
 
-variable "kube_host" {
-  description = "API server URL of the cluster that runs workspaces, when it is not the cluster Coder runs in. Supply this from your EKS cluster."
-  type        = string
-  default     = ""
-
-  validation {
-    condition     = var.kube_host == "" || startswith(var.kube_host, "https://")
-    error_message = "kube_host must be empty or an https:// URL."
-  }
-}
-
-variable "kube_ca_certificate" {
-  description = "Base64 CA certificate of kube_host."
-  type        = string
-  default     = ""
-}
-
-variable "kube_token" {
-  description = "Token of the provisioner's namespace-scoped service account in kube_host's cluster."
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
 variable "namespace" {
   description = "Namespace for workspaces. Create it with Pod Security and the provisioner Role before using the template."
   type        = string
@@ -152,7 +128,7 @@ variable "coder_host_ip" {
 }
 
 variable "sandbox_runtime_class" {
-  description = "RuntimeClass for hardware isolation. The default isolated-sandbox runs on EKS Auto Mode with Nitro Sandboxes. Other installed runtimes, such as kata-qemu or gvisor, also work. Empty uses the node default runtime."
+  description = "RuntimeClass for hardware isolation. The default isolated-sandbox runs each workspace Pod in its own AWS Nitro Sandbox on EKS Auto Mode. Empty uses the node default runtime, which shares the node kernel."
   type        = string
   default     = "isolated-sandbox"
 
@@ -165,6 +141,11 @@ variable "sandbox_runtime_class" {
 variable "aws_region" {
   description = "AWS Region of the EKS cluster and the artifacts bucket."
   type        = string
+
+  validation {
+    condition     = can(regex("^[a-z]{2}(-[a-z]+)+-[0-9]+$", var.aws_region))
+    error_message = "aws_region must be an AWS Region name, such as us-east-1."
+  }
 }
 
 variable "eks_cluster_name" {
@@ -242,7 +223,7 @@ variable "extra_allowed_hosts" {
 }
 
 variable "ai_gateway_token_mode" {
-  description = "Coder token that Claude Code sends to AI Gateway. scoped: a new token limited to user:read_personal, which expires after ai_gateway_token_lifetime_hours but is not attributed to the workspace in AI Gateway. session: the owner's workspace session token, which AI Gateway attributes to the workspace and Coder deletes on stop, but which has full API access."
+  description = "Coder token that Claude Code sends to AI Gateway. scoped: a new token limited to user:read_personal. Each start revokes the workspace's earlier ones, and each expires after ai_gateway_token_lifetime_hours. AI Gateway does not attribute it to the workspace. session: the owner's workspace session token, which AI Gateway attributes to the workspace and Coder deletes on stop, but which has full API access."
   type        = string
   default     = "scoped"
 
@@ -253,9 +234,14 @@ variable "ai_gateway_token_mode" {
 }
 
 variable "ai_gateway_token_lifetime_hours" {
-  description = "Lifetime of the scoped AI Gateway token. Keep it near the template's autostop time. It cannot exceed the deployment's maximum token lifetime."
+  description = "Lifetime of the scoped AI Gateway token. Coder cannot revoke it at stop, so this is how long it stays valid after the workspace stops. Keep it near the template's autostop time. It cannot exceed the deployment's maximum token lifetime."
   type        = number
-  default     = 24
+  default     = 8
+
+  validation {
+    condition     = var.ai_gateway_token_lifetime_hours >= 1 && var.ai_gateway_token_lifetime_hours <= 168 && floor(var.ai_gateway_token_lifetime_hours) == var.ai_gateway_token_lifetime_hours
+    error_message = "ai_gateway_token_lifetime_hours must be a whole number from 1 to 168."
+  }
 }
 
 variable "ai_gateway_provider" {
@@ -338,10 +324,7 @@ variable "github_external_auth_id" {
 }
 
 provider "kubernetes" {
-  config_path            = var.kube_host == "" && var.use_kubeconfig ? "~/.kube/config" : null
-  host                   = var.kube_host != "" ? var.kube_host : null
-  cluster_ca_certificate = var.kube_host != "" ? base64decode(var.kube_ca_certificate) : null
-  token                  = var.kube_host != "" ? var.kube_token : null
+  config_path = var.use_kubeconfig ? "~/.kube/config" : null
 }
 
 # The provisioner uses its own AWS credentials when it creates an association.
@@ -472,7 +455,9 @@ locals {
       } : k => b if var.enable_kiro
     },
   )
-  default_egress_bundles = ["github", "kiro"]
+  # Kiro is opt-in: it sends model traffic to its own service, outside AI
+  # Gateway, so a user must choose its bundle.
+  default_egress_bundles = ["github"]
 
   private_cidrs = ["10.0.0.0/8", "100.64.0.0/10", "169.254.0.0/16", "172.16.0.0/12", "192.168.0.0/16"]
   dns_servers   = var.dns_servers != "" ? [for server in split(",", var.dns_servers) : trimspace(server)] : ["169.254.169.253"]
@@ -1354,9 +1339,16 @@ module "git-clone" {
 # --------------------------------------------------------------------------
 
 # The owner's session token has full Coder API access. This template uses
-# it once at build time to mint a token with only the user:read_personal
-# scope, which AI Gateway accepts. timestamp() defers the request to apply,
-# so a plan creates nothing, and a prebuild gets its token when it is claimed.
+# it at build time to mint a token with only the user:read_personal scope,
+# which AI Gateway accepts. timestamp() defers the request to apply, so a
+# plan creates nothing, and a prebuild gets its token when it is claimed.
+#
+# Every start first revokes this workspace's earlier scoped tokens, so only
+# the newest one is valid. Coder gives stop and delete builds no owner
+# session token, so the template cannot revoke at stop: the last token stays
+# valid until ai_gateway_token_lifetime_hours runs out. Like the owner
+# session token, the minted token is stored unencrypted in Terraform state,
+# which template admins can read.
 locals {
   ai_gateway_token_ready = (
     local.claude &&
@@ -1364,7 +1356,26 @@ locals {
     !data.coder_workspace.me.is_prebuild &&
     data.coder_workspace_owner.me.session_token != ""
   )
-  mint_ai_gateway_token = local.ai_gateway_token_ready && var.ai_gateway_token_mode == "scoped"
+  mint_ai_gateway_token   = local.ai_gateway_token_ready && var.ai_gateway_token_mode == "scoped"
+  ai_gateway_token_prefix = "ai-gateway-${substr(data.coder_workspace.me.id, 0, 8)}-"
+}
+
+# Runs on the provisioner, which ships the coder CLI. Best effort: a failure
+# must not block the start, and the old tokens still expire on their own.
+resource "terraform_data" "revoke_ai_gateway_tokens" {
+  count            = local.mint_ai_gateway_token ? 1 : 0
+  triggers_replace = timestamp()
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/sh", "-c"]
+    command     = "coder tokens list -c id,name | awk -v p=\"$TOKEN_PREFIX\" 'NR > 1 && index($2, p) == 1 { print $1 }' | while read -r id; do coder tokens remove --delete \"$id\" > /dev/null; done"
+    on_failure  = continue
+    environment = {
+      CODER_URL           = local.access_url
+      CODER_SESSION_TOKEN = data.coder_workspace_owner.me.session_token
+      TOKEN_PREFIX        = local.ai_gateway_token_prefix
+    }
+  }
 }
 
 data "http" "ai_gateway_token" {
@@ -1376,11 +1387,15 @@ data "http" "ai_gateway_token" {
     "Content-Type"        = "application/json"
   }
   request_body = jsonencode({
-    token_name = "ai-gateway-${substr(data.coder_workspace.me.id, 0, 8)}-${formatdate("YYYYMMDDhhmmss", timestamp())}"
+    token_name = "${local.ai_gateway_token_prefix}${formatdate("YYYYMMDDhhmmss", timestamp())}"
     scopes     = ["user:read_personal"]
     # time.Duration in nanoseconds.
     lifetime = var.ai_gateway_token_lifetime_hours * 3600 * 1000000000
   })
+
+  # Revoke the earlier tokens first, or the revocation would also match the
+  # new one.
+  depends_on = [terraform_data.revoke_ai_gateway_tokens]
 
   lifecycle {
     postcondition {
