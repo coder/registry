@@ -92,7 +92,7 @@ module "codex" {
 }
 ```
 
-When `enable_ai_gateway = true`, the module configures Codex to use the `aigateway` model provider in `config.toml`. By default it authenticates with the workspace owner's session token, which has full access to the Coder API. As a workaround, to give Codex a token with narrow scopes instead, use the [ai-gateway-token](https://registry.coder.com/modules/coder-labs/ai-gateway-token) module. AI Gateway then loses workspace attribution for these requests; refer to that module's README for the tradeoffs.
+When `enable_ai_gateway = true`, the module configures Codex to use the `aigateway` model provider in `config.toml`. By default it authenticates with the workspace owner's session token, which has full access to the Coder API. To give Codex a token with narrower scopes, use the [ai-gateway-token](https://registry.coder.com/modules/coder-labs/ai-gateway-token) module. AI Gateway doesn't attribute these requests to the workspace; refer to that module's README for details.
 
 ```tf
 module "ai_gateway_token" {

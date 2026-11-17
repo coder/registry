@@ -1,21 +1,18 @@
 ---
 display_name: AI Gateway Token
-description: Workaround that creates a narrowly scoped Coder API token for AI Gateway, so agents do not get the owner's full-access session token.
+description: Create a narrowly scoped Coder API token for AI Gateway, as an alternative to the workspace owner's session token.
 icon: ../../../../.icons/coder.svg
 verified: false
-tags: [helper, ai, ai-gateway, security]
+tags: [helper, ai, ai-gateway]
 ---
 
 # AI Gateway Token
 
 Create a Coder API token with narrow scopes for [AI Gateway](https://coder.com/docs/ai-coder/ai-gateway), and pass it to an agent module instead of the workspace owner's session token.
 
-> [!WARNING]
-> This module is a temporary workaround, not the long-term fix.
-> AI Gateway has no scope of its own and doesn't check token scopes, and Coder has no gateway-only workspace credential yet.
-> The token this module creates isn't a workspace session token, so AI Gateway loses workspace attribution for these requests.
-> Use it only when keeping the full-access token away from agents matters more than per-workspace usage data and budgets.
-> Once Coder provides a gateway-only workspace token, switch to it and remove this module.
+> [!NOTE]
+> This module is a workaround until Coder provides a dedicated AI Gateway token for workspaces.
+> The token it creates isn't a workspace session token, so AI Gateway doesn't attribute these requests to the workspace.
 
 ```tf
 module "ai_gateway_token" {
@@ -34,13 +31,11 @@ module "claude-code" {
 
 ## Why
 
-`data.coder_workspace_owner.me.session_token` has the owner's full access to the Coder API.
-An agent that can read it can use it to reach the owner's other workspaces, create workspaces from any template the owner can use, and create more tokens.
-This holds even when the agent runs in a network sandbox, because AI Gateway is served from the same host as the rest of the Coder API, so a sandbox that lets the agent reach AI Gateway usually lets it reach the whole API.
+By default, agent modules authenticate with AI Gateway using `data.coder_workspace_owner.me.session_token`, which has the owner's full access to the Coder API.
+AI Gateway only needs a token that identifies the user, so admins who want least-privilege credentials in the workspace can use this module instead.
 
 This module uses the session token only in the provisioner, during the build, to create a token with the `user:read_personal` scope.
 Only that token is put in the workspace.
-AI Gateway accepts it, and the rest of the Coder API rejects it for most requests.
 
 ## How it works
 

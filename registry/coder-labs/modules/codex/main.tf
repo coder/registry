@@ -127,7 +127,7 @@ variable "enable_ai_gateway" {
 }
 
 variable "ai_gateway_token" {
-  description = "Coder API token that Codex uses to authenticate with AI Gateway. When null, the module uses the workspace owner's session token, which has full access to the Coder API. Pass a token with narrow scopes, such as the output of the ai-gateway-token module, to limit what an agent in the workspace can do with it."
+  description = "Coder API token that Codex uses to authenticate with AI Gateway. When null, the module uses the workspace owner's session token, which has full access to the Coder API. Pass a token with narrower scopes, such as the output of the ai-gateway-token module, to use it instead."
   type        = string
   default     = null
   sensitive   = true
