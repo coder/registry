@@ -125,6 +125,13 @@ variable "enable_ai_gateway" {
   }
 }
 
+variable "ai_gateway_token" {
+  description = "Coder API token that Claude Code uses to authenticate with AI Gateway. When null, the module uses the workspace owner's session token, which has full access to the Coder API. Pass a token with narrow scopes, such as the output of the ai-gateway-token module, to limit what an agent in the workspace can do with it."
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
 variable "authentication_config" {
   description = "Controls where Claude Code reads its AI Gateway authentication (ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN). \"environment\" (default) sets them as workspace environment variables. \"managed_settings\" writes them to the env block of /etc/claude-code/managed-settings.d/10-coder.json so they do not appear in the workspace shell environment."
   type        = string
@@ -263,7 +270,7 @@ variable "api_key_helper" {
 
   validation {
     condition     = var.api_key_helper == null || !var.enable_ai_gateway
-    error_message = "api_key_helper cannot be combined with enable_ai_gateway. AI Gateway authenticates using the workspace owner's session token."
+    error_message = "api_key_helper cannot be combined with enable_ai_gateway. AI Gateway authenticates using a Coder API token."
   }
 }
 
@@ -281,13 +288,18 @@ resource "coder_env" "anthropic_api_key" {
   value    = var.anthropic_api_key
 }
 
-# ANTHROPIC_AUTH_TOKEN authenticates the client against Coder's AI Gateway
-# using the workspace owner's session token, per the AI Gateway docs.
+locals {
+  # The owner session token has full access to the Coder API, so prefer a
+  # narrower token when the template provides one.
+  ai_gateway_token = var.ai_gateway_token != null ? var.ai_gateway_token : data.coder_workspace_owner.me.session_token
+}
+
+# ANTHROPIC_AUTH_TOKEN authenticates the client against Coder's AI Gateway.
 resource "coder_env" "anthropic_auth_token" {
   count    = var.authentication_config == "environment" && var.enable_ai_gateway ? 1 : 0
   agent_id = var.agent_id
   name     = "ANTHROPIC_AUTH_TOKEN"
-  value    = data.coder_workspace_owner.me.session_token
+  value    = local.ai_gateway_token
 }
 
 resource "coder_env" "disable_autoupdater" {
@@ -319,7 +331,7 @@ locals {
       ANTHROPIC_BASE_URL = var.enable_ai_gateway ? "${data.coder_workspace.me.access_url}/api/v2/aibridge/anthropic" : var.anthropic_base_url
     } : {},
     var.enable_ai_gateway ? {
-      ANTHROPIC_AUTH_TOKEN = data.coder_workspace_owner.me.session_token
+      ANTHROPIC_AUTH_TOKEN = local.ai_gateway_token
     } : {},
   )
 

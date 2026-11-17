@@ -126,6 +126,13 @@ variable "enable_ai_gateway" {
   }
 }
 
+variable "ai_gateway_token" {
+  description = "Coder API token that Codex uses to authenticate with AI Gateway. When null, the module uses the workspace owner's session token, which has full access to the Coder API. Pass a token with narrow scopes, such as the output of the ai-gateway-token module, to limit what an agent in the workspace can do with it."
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
 resource "coder_env" "openai_api_key" {
   count    = var.openai_api_key != "" ? 1 : 0
   agent_id = var.agent_id
@@ -133,13 +140,14 @@ resource "coder_env" "openai_api_key" {
   value    = var.openai_api_key
 }
 
-# Authenticates the client against Coder's AI Gateway using the workspace
-# owner's session token. Referenced by config.toml model_providers.aigateway.
+# Authenticates the client against Coder's AI Gateway. Referenced by
+# config.toml model_providers.aigateway. The owner session token has full
+# access to the Coder API, so prefer a narrower token when one is provided.
 resource "coder_env" "ai_gateway_session_token" {
   count    = var.enable_ai_gateway ? 1 : 0
   agent_id = var.agent_id
   name     = "OPENAI_CODER_AIGATEWAY_SESSION_TOKEN"
-  value    = data.coder_workspace_owner.me.session_token
+  value    = var.ai_gateway_token != null ? var.ai_gateway_token : data.coder_workspace_owner.me.session_token
 }
 
 locals {

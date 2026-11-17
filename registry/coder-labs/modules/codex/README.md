@@ -13,7 +13,7 @@ Install and configure the [Codex CLI](https://github.com/openai/codex) in your w
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.5.0"
+  version        = "5.6.0"
   agent_id       = coder_agent.main.id
   openai_api_key = var.openai_api_key
 }
@@ -32,7 +32,7 @@ API-key authentication when explicitly configured. Existing authentication is le
 ```tf
 module "codex" {
   source        = "registry.coder.com/coder-labs/codex/coder"
-  version       = "5.5.0"
+  version       = "5.6.0"
   agent_id      = coder_agent.main.id
   manage_config = false
 }
@@ -54,7 +54,7 @@ locals {
 
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.5.0"
+  version        = "5.6.0"
   agent_id       = coder_agent.main.id
   workdir        = local.codex_workdir
   openai_api_key = var.openai_api_key
@@ -85,14 +85,30 @@ resource "coder_app" "codex" {
 ```tf
 module "codex" {
   source            = "registry.coder.com/coder-labs/codex/coder"
-  version           = "5.5.0"
+  version           = "5.6.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   enable_ai_gateway = true
 }
 ```
 
-When `enable_ai_gateway = true`, the module configures Codex to use the `aigateway` model provider in `config.toml` with the workspace owner's session token for authentication.
+When `enable_ai_gateway = true`, the module configures Codex to use the `aigateway` model provider in `config.toml`. By default it authenticates with the workspace owner's session token, which has full access to the Coder API. To give Codex a token with narrow scopes instead, use the [ai-gateway-token](https://registry.coder.com/modules/coder-labs/ai-gateway-token) module:
+
+```tf
+module "ai_gateway_token" {
+  source  = "registry.coder.com/coder-labs/ai-gateway-token/coder"
+  version = "1.0.0"
+}
+
+module "codex" {
+  source            = "registry.coder.com/coder-labs/codex/coder"
+  version           = "5.6.0"
+  agent_id          = coder_agent.main.id
+  workdir           = "/home/coder/project"
+  enable_ai_gateway = true
+  ai_gateway_token  = module.ai_gateway_token.token
+}
+```
 
 > [!CAUTION]
 > `enable_ai_gateway = true` is mutually exclusive with `openai_api_key`. Setting both fails at plan time.
@@ -109,7 +125,7 @@ When `enable_ai_gateway = true`, the module configures Codex to use the `aigatew
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.5.0"
+  version        = "5.6.0"
   agent_id       = coder_agent.main.id
   workdir        = "/home/coder/project"
   openai_api_key = var.openai_api_key
@@ -155,7 +171,7 @@ The module exposes the `scripts` output: an ordered list of `coder exp sync` nam
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.5.0"
+  version        = "5.6.0"
   agent_id       = coder_agent.main.id
   openai_api_key = var.openai_api_key
 }

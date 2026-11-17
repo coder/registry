@@ -80,6 +80,29 @@ run "test_ai_gateway_enabled" {
   }
 }
 
+run "test_ai_gateway_token_override" {
+  command = plan
+
+  variables {
+    agent_id          = "test-agent"
+    workdir           = "/home/coder"
+    enable_ai_gateway = true
+    ai_gateway_token  = "scoped-token"
+  }
+
+  override_data {
+    target = data.coder_workspace_owner.me
+    values = {
+      session_token = "mock-session-token"
+    }
+  }
+
+  assert {
+    condition     = coder_env.ai_gateway_session_token[0].value == "scoped-token"
+    error_message = "OPENAI_CODER_AIGATEWAY_SESSION_TOKEN should use ai_gateway_token instead of the owner session token"
+  }
+}
+
 run "test_ai_gateway_validation_with_api_key" {
   command = plan
 
