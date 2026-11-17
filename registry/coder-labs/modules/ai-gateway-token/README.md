@@ -1,6 +1,6 @@
 ---
 display_name: AI Gateway Token
-description: Create a Coder API token with narrow scopes for AI Gateway, so agents in the workspace do not get the owner's full-access session token.
+description: Workaround that creates a narrowly scoped Coder API token for AI Gateway, so agents do not get the owner's full-access session token.
 icon: ../../../../.icons/coder.svg
 verified: false
 tags: [helper, ai, ai-gateway, security]
@@ -10,9 +10,16 @@ tags: [helper, ai, ai-gateway, security]
 
 Create a Coder API token with narrow scopes for [AI Gateway](https://coder.com/docs/ai-coder/ai-gateway), and pass it to an agent module instead of the workspace owner's session token.
 
+> [!WARNING]
+> This module is a temporary workaround, not the long-term fix.
+> AI Gateway has no scope of its own and doesn't check token scopes, and Coder has no gateway-only workspace credential yet.
+> The token this module creates isn't a workspace session token, so AI Gateway loses workspace attribution for these requests.
+> Use it only when keeping the full-access token away from agents matters more than per-workspace usage data and budgets.
+> Once Coder provides a gateway-only workspace token, switch to it and remove this module.
+
 ```tf
 module "ai_gateway_token" {
-  source  = "registry.coder.com/coder/ai-gateway-token/coder"
+  source  = "registry.coder.com/coder-labs/ai-gateway-token/coder"
   version = "1.0.0"
 }
 

@@ -102,11 +102,11 @@ Claude Code then routes API requests through Coder's AI Gateway instead of direc
 
 #### Limit the AI Gateway token
 
-The workspace owner's session token has full access to the Coder API. An agent that reads it can reach the owner's other workspaces and create new ones, even when the agent runs in a sandbox. Use the [ai-gateway-token](https://registry.coder.com/modules/coder/ai-gateway-token) module to create a token with narrow scopes during the build, and pass it with `ai_gateway_token`:
+The workspace owner's session token has full access to the Coder API. An agent that reads it can reach the owner's other workspaces and create new ones, even when the agent runs in a sandbox. As a workaround, use the [ai-gateway-token](https://registry.coder.com/modules/coder-labs/ai-gateway-token) module to create a token with narrow scopes during the build, and pass it with `ai_gateway_token`. AI Gateway then loses workspace attribution for these requests; refer to that module's README for the tradeoffs.
 
 ```tf
 module "ai_gateway_token" {
-  source  = "registry.coder.com/coder/ai-gateway-token/coder"
+  source  = "registry.coder.com/coder-labs/ai-gateway-token/coder"
   version = "1.0.0"
 }
 
