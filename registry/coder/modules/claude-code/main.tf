@@ -267,17 +267,6 @@ variable "api_key_helper" {
   }
 }
 
-variable "status_app_slug" {
-  description = "Slug of a coder_app on the same agent, such as the app that launches Claude. When set, Claude Code hooks report \"working\" and \"idle\" to that app. Coder counts \"working\" as workspace activity, so autostop waits while Claude works even with no IDE, SSH, or web terminal connection open. Requires write access to /etc/claude-code/managed-settings.d."
-  type        = string
-  default     = ""
-
-  validation {
-    condition     = var.status_app_slug == "" || can(regex("^[a-z0-9](-?[a-z0-9])*$", var.status_app_slug))
-    error_message = "status_app_slug must be a valid coder_app slug (lowercase letters, numbers, and single hyphens)."
-  }
-}
-
 resource "coder_env" "claude_code_oauth_token" {
   count    = var.claude_code_oauth_token != "" ? 1 : 0
   agent_id = var.agent_id
@@ -471,8 +460,6 @@ locals {
     ARG_USE_FOUNDRY            = tostring(var.use_foundry)
     ARG_ANTHROPIC_BASE_URL     = var.anthropic_base_url
     ARG_API_KEY_HELPER_SCRIPT  = var.api_key_helper != null ? base64encode(var.api_key_helper.script) : ""
-    ARG_STATUS_APP_SLUG        = var.status_app_slug
-    ARG_REPORT_STATUS_SCRIPT   = var.status_app_slug != "" ? base64encode(templatefile("${path.module}/scripts/report-status.sh.tftpl", {})) : ""
   })
   module_dir_name = ".coder-modules/coder/claude-code"
 }

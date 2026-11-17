@@ -926,30 +926,3 @@ run "test_authentication_config_invalid_value" {
     var.authentication_config,
   ]
 }
-
-run "test_status_app_slug" {
-  command = plan
-
-  variables {
-    agent_id        = "test-agent-status"
-    status_app_slug = "claude"
-  }
-
-  assert {
-    condition     = strcontains(local.install_script, "ARG_STATUS_APP_SLUG='claude'")
-    error_message = "status_app_slug should be passed to the install script"
-  }
-}
-
-run "test_status_app_slug_validation" {
-  command = plan
-
-  variables {
-    agent_id        = "test-agent-status"
-    status_app_slug = "Claude Code"
-  }
-
-  expect_failures = [
-    var.status_app_slug,
-  ]
-}

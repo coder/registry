@@ -13,7 +13,7 @@ Install and configure the [Claude Code](https://docs.anthropic.com/en/docs/agent
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.6.0"
+  version           = "5.5.2"
   agent_id          = coder_agent.main.id
   anthropic_api_key = "xxxx-xxxxx-xxxx"
 }
@@ -52,7 +52,7 @@ locals {
 
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.6.0"
+  version           = "5.5.2"
   agent_id          = coder_agent.main.id
   workdir           = local.claude_workdir
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -78,22 +78,26 @@ resource "coder_app" "claude" {
 
 ### Keep the workspace running while Claude works
 
-Coder stops a workspace on autostop when it sees no activity. An IDE, SSH, or web terminal connection counts as activity, but Claude Code running in a detached `tmux` session, under [Herdr](https://registry.coder.com/modules/gojnimer6553/herdr), or under `nohup` does not. Set `status_app_slug` to the slug of a `coder_app` on the same agent, and the module registers Claude Code hooks that report `working` and `idle` to that app. Coder counts a `working` report as [workspace activity](https://coder.com/docs/workspaces/workspace-scheduling#activity-detection) and extends the autostop deadline by the template's activity bump.
+Claude Code in a detached `tmux` session or under `nohup` opens no IDE, SSH, or web terminal connection, so Coder doesn't count its work as activity and autostop can stop the workspace mid-task. Register Claude Code hooks through `managed_settings` that run a keep-alive helper on each prompt and tool call:
 
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.6.0"
+  version           = "5.5.2"
   agent_id          = coder_agent.main.id
   anthropic_api_key = "xxxx-xxxxx-xxxx"
-  status_app_slug   = coder_app.claude.slug
+
+  managed_settings = {
+    hooks = {
+      for event in ["UserPromptSubmit", "PreToolUse", "PostToolUse"] : event => [{
+        hooks = [{ type = "command", command = "cat > /dev/null; $HOME/.local/bin/coder-keepalive" }]
+      }]
+    }
+  }
 }
 ```
 
-The hooks run in every Claude Code session as the workspace user and report through the agent API with `CODER_AGENT_TOKEN`. Prompts and tool calls report `working`, and repeat reports are limited to one every 5 minutes. Finished turns, permission prompts, and session ends report `idle`. The app tile shows the latest status.
-
-> [!NOTE]
-> The hooks live in `/etc/claude-code/managed-settings.d/30-coder-status.json`, so the module needs `sudo` or write access to that directory. A single tool call that runs longer than the template's activity bump does not report again until it finishes.
+The `coder-keepalive` helper and the scoped token it uses come from a `coder_script` in the template. Refer to [Keep coding agents running](https://coder.com/docs/workspaces/workspace-scheduling#keep-coding-agents-running) for the script.
 
 ### Usage with AI Gateway
 
@@ -102,7 +106,7 @@ The hooks run in every Claude Code session as the workspace user and report thro
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.6.0"
+  version           = "5.5.2"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   enable_ai_gateway = true
@@ -126,7 +130,7 @@ By default the module wires `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN` via 
 ```tf
 module "claude-code" {
   source                = "registry.coder.com/coder/claude-code/coder"
-  version               = "5.6.0"
+  version               = "5.5.2"
   agent_id              = coder_agent.main.id
   workdir               = "/home/coder/project"
   enable_ai_gateway     = true
@@ -146,7 +150,7 @@ Setting `managed_settings = null` removes this module's policy file on the next 
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.6.0"
+  version           = "5.5.2"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -175,7 +179,7 @@ Setting `api_key_helper = null` removes the module's registration file and `~/.c
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.6.0"
+  version  = "5.5.2"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -194,7 +198,7 @@ Or, sourcing from AWS Secrets Manager:
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.6.0"
+  version  = "5.5.2"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -219,7 +223,7 @@ This example shows version pinning, a pre-installed binary path, a custom model,
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.6.0"
+  version  = "5.5.2"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -283,7 +287,7 @@ Downstream `coder_script` resources can wait for this module's install pipeline 
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.6.0"
+  version           = "5.5.2"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -313,7 +317,7 @@ Set `use_bedrock = true` to route Claude Code through Amazon Bedrock. The module
 ```tf
 module "claude-code" {
   source      = "registry.coder.com/coder/claude-code/coder"
-  version     = "5.6.0"
+  version     = "5.5.2"
   agent_id    = coder_agent.main.id
   workdir     = "/home/coder/project"
   use_bedrock = true
@@ -366,7 +370,7 @@ Set `use_vertex = true` to route Claude Code through Google Vertex AI. The modul
 ```tf
 module "claude-code" {
   source     = "registry.coder.com/coder/claude-code/coder"
-  version    = "5.6.0"
+  version    = "5.5.2"
   agent_id   = coder_agent.main.id
   workdir    = "/home/coder/project"
   use_vertex = true
@@ -401,7 +405,7 @@ This example uses the Azure default credential chain. Attach a managed identity 
 ```tf
 module "claude-code" {
   source           = "registry.coder.com/coder/claude-code/coder"
-  version          = "5.6.0"
+  version          = "5.5.2"
   agent_id         = coder_agent.main.id
   workdir          = "/home/coder/project"
   use_foundry      = true
@@ -445,7 +449,7 @@ Set `anthropic_base_url` to point Claude Code at a self-hosted gateway or proxy 
 ```tf
 module "claude-code" {
   source             = "registry.coder.com/coder/claude-code/coder"
-  version            = "5.6.0"
+  version            = "5.5.2"
   agent_id           = coder_agent.main.id
   workdir            = "/home/coder/project"
   anthropic_base_url = "https://llm-gateway.example.com/anthropic"
@@ -464,7 +468,7 @@ The module automatically tags every span and metric with `coder.workspace_id`, `
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.6.0"
+  version           = "5.5.2"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"

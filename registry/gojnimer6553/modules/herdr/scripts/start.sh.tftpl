@@ -120,36 +120,6 @@ fi
 echo "ℹ️  Herdr is running in tmux session '$${ARG_TMUX_SESSION}'. Attach from a workspace terminal with: tmux attach -t $${ARG_TMUX_SESSION}"
 echo "ℹ️  Plugins with their own setup wizard (e.g. 0cv/herdr-mobile-relay) still need it run once, e.g.: herdr plugin action invoke setup --plugin <plugin-id>"
 
-# Status reporting: see the status_app_slug variable in main.tf. The reporter
-# runs detached (setsid + nohup) so it outlives this coder_script, and a PID
-# file keeps reruns of this script from starting a second copy.
-ARG_STATUS_APP_SLUG='${ARG_STATUS_APP_SLUG}'
-STATUS_SCRIPT_PATH="$${ARG_MODULE_DIRECTORY}/scripts/report-status.sh"
-STATUS_PID_FILE="$${ARG_MODULE_DIRECTORY}/report-status.pid"
-
-status_reporter_alive() {
-  [ -f "$STATUS_PID_FILE" ] && kill -0 "$(cat "$STATUS_PID_FILE")" 2> /dev/null
-}
-
-if status_reporter_alive; then
-  kill "$(cat "$STATUS_PID_FILE")" 2> /dev/null || true
-fi
-rm -f "$STATUS_PID_FILE"
-
-if [ -n "$${ARG_STATUS_APP_SLUG}" ]; then
-  if [ -z "$${CODER_AGENT_TOKEN:-}" ] || [ -z "$${CODER_AGENT_URL:-}" ]; then
-    echo "⚠️  CODER_AGENT_TOKEN or CODER_AGENT_URL is not set; Herdr status will not be reported."
-  else
-    mkdir -p "$(dirname "$STATUS_SCRIPT_PATH")"
-    echo -n '${ARG_REPORT_STATUS_SCRIPT}' | base64 -d > "$STATUS_SCRIPT_PATH"
-    chmod 0755 "$STATUS_SCRIPT_PATH"
-    setsid nohup "$STATUS_SCRIPT_PATH" "$${ARG_STATUS_APP_SLUG}" \
-      >> "$LOG_DIR/report-status.log" 2>&1 < /dev/null &
-    echo $! > "$STATUS_PID_FILE"
-    echo "📡 Reporting Herdr agent status to app '$${ARG_STATUS_APP_SLUG}'."
-  fi
-fi
-
 # post_start_script: see the variable's description in main.tf. Read via a
 # heredoc (like PLUGINS_LIST above) rather than embedded directly as a
 # double-quoted shell string, since it's caller-supplied and may itself

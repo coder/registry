@@ -17,7 +17,7 @@ via `herdr plugin install <spec> --yes`.
 module "herdr" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/gojnimer6553/herdr/coder"
-  version  = "1.1.0"
+  version  = "1.0.0"
   agent_id = coder_agent.main.id
 }
 ```
@@ -80,7 +80,7 @@ below.
 module "herdr" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/gojnimer6553/herdr/coder"
-  version  = "1.1.0"
+  version  = "1.0.0"
   agent_id = coder_agent.main.id
   plugins  = ["0cv/herdr-mobile-relay"]
   app_port = 8375
@@ -100,7 +100,7 @@ skipping the wizard and its `cloudflared` requirement:
 module "herdr" {
   count             = data.coder_workspace.me.start_count
   source            = "registry.coder.com/gojnimer6553/herdr/coder"
-  version           = "1.1.0"
+  version           = "1.0.0"
   agent_id          = coder_agent.main.id
   plugins           = ["0cv/herdr-mobile-relay"]
   app_port          = 8375
@@ -141,7 +141,7 @@ session gating.
 module "herdr" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/gojnimer6553/herdr/coder"
-  version  = "1.1.0"
+  version  = "1.0.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 }
@@ -153,7 +153,7 @@ module "herdr" {
 module "herdr" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/gojnimer6553/herdr/coder"
-  version  = "1.1.0"
+  version  = "1.0.0"
   agent_id = coder_agent.main.id
   plugins = [
     "0cv/herdr-mobile-relay",
@@ -164,27 +164,30 @@ module "herdr" {
 
 ### Keep the workspace running while agents work
 
-Coder stops a workspace on autostop when it sees no activity. An IDE, SSH, or web terminal connection counts as activity, but agents running in Herdr's detached `tmux` session do not. Set `status_app_slug` to the slug of a `coder_app` on the same agent, and the module starts a background reporter that polls `herdr agent list` every 30 seconds. It reports `working` to that app while any agent Herdr tracks is working, and `idle` otherwise. Coder counts a `working` report as [workspace activity](https://coder.com/docs/workspaces/workspace-scheduling#activity-detection) and extends the autostop deadline by the template's activity bump.
+Agents in Herdr's detached `tmux` session open no IDE, SSH, or web terminal connection, so Coder doesn't count their work as activity and autostop can stop the workspace mid-task. Use `post_start_script` to start a loop that runs a keep-alive helper while any agent Herdr tracks is working:
 
 ```tf
-resource "coder_app" "herdr" {
-  agent_id     = coder_agent.main.id
-  slug         = "herdr"
-  display_name = "Herdr"
-  icon         = "/icon/herdr.svg"
-  command      = "tmux attach -t herdr"
-}
-
 module "herdr" {
-  count           = data.coder_workspace.me.start_count
-  source          = "registry.coder.com/gojnimer6553/herdr/coder"
-  version         = "1.1.0"
-  agent_id        = coder_agent.main.id
-  status_app_slug = coder_app.herdr.slug
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/gojnimer6553/herdr/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.main.id
+
+  post_start_script = <<-EOT
+    #!/usr/bin/env bash
+    # While any agent in Herdr is working, keep the workspace running.
+    nohup flock -n "$HOME/.config/coder-keepalive.lock" bash -c '
+      while true; do
+        if herdr agent list 2> /dev/null | grep -q "\"agent_status\":\"working\""; then
+          "$HOME/.local/bin/coder-keepalive"
+        fi
+        sleep 60
+      done' > /dev/null 2>&1 &
+  EOT
 }
 ```
 
-The reporter authenticates with `CODER_AGENT_TOKEN` and repeats `working` reports at most once every 5 minutes. Its log is at `$HOME/.coder-modules/gojnimer6553/herdr/logs/report-status.log`.
+The `coder-keepalive` helper and the scoped token it uses come from a `coder_script` in the template. Refer to [Keep coding agents running](https://coder.com/docs/workspaces/workspace-scheduling#keep-coding-agents-running) for the script.
 
 ### Skip installation and use a pre-baked image
 
@@ -192,7 +195,7 @@ The reporter authenticates with `CODER_AGENT_TOKEN` and repeats `working` report
 module "herdr" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/gojnimer6553/herdr/coder"
-  version  = "1.1.0"
+  version  = "1.0.0"
   agent_id = coder_agent.main.id
   install  = false
 }
