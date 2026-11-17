@@ -12,7 +12,7 @@ Create a Coder API token with narrow scopes for [AI Gateway](https://coder.com/d
 
 ```tf
 module "ai_gateway_token" {
-  source  = "registry.coder.com/coder-labs/ai-gateway-token/coder"
+  source  = "registry.coder.com/coder/ai-gateway-token/coder"
   version = "1.0.0"
 }
 
