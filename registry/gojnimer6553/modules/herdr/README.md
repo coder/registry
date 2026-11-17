@@ -17,7 +17,7 @@ via `herdr plugin install <spec> --yes`.
 module "herdr" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/gojnimer6553/herdr/coder"
-  version  = "1.0.0"
+  version  = "1.1.0"
   agent_id = coder_agent.main.id
 }
 ```
@@ -80,7 +80,7 @@ below.
 module "herdr" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/gojnimer6553/herdr/coder"
-  version  = "1.0.0"
+  version  = "1.1.0"
   agent_id = coder_agent.main.id
   plugins  = ["0cv/herdr-mobile-relay"]
   app_port = 8375
@@ -100,7 +100,7 @@ skipping the wizard and its `cloudflared` requirement:
 module "herdr" {
   count             = data.coder_workspace.me.start_count
   source            = "registry.coder.com/gojnimer6553/herdr/coder"
-  version           = "1.0.0"
+  version           = "1.1.0"
   agent_id          = coder_agent.main.id
   plugins           = ["0cv/herdr-mobile-relay"]
   app_port          = 8375
@@ -141,7 +141,7 @@ session gating.
 module "herdr" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/gojnimer6553/herdr/coder"
-  version  = "1.0.0"
+  version  = "1.1.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 }
@@ -153,7 +153,7 @@ module "herdr" {
 module "herdr" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/gojnimer6553/herdr/coder"
-  version  = "1.0.0"
+  version  = "1.1.0"
   agent_id = coder_agent.main.id
   plugins = [
     "0cv/herdr-mobile-relay",
@@ -162,13 +162,37 @@ module "herdr" {
 }
 ```
 
+### Keep the workspace running while agents work
+
+Coder stops a workspace on autostop when it sees no activity. An IDE, SSH, or web terminal connection counts as activity, but agents running in Herdr's detached `tmux` session do not. Set `status_app_slug` to the slug of a `coder_app` on the same agent, and the module starts a background reporter that polls `herdr agent list` every 30 seconds. It reports `working` to that app while any agent Herdr tracks is working, and `idle` otherwise. Coder counts a `working` report as [workspace activity](https://coder.com/docs/workspaces/workspace-scheduling#activity-detection) and extends the autostop deadline by the template's activity bump.
+
+```tf
+resource "coder_app" "herdr" {
+  agent_id     = coder_agent.main.id
+  slug         = "herdr"
+  display_name = "Herdr"
+  icon         = "/icon/herdr.svg"
+  command      = "tmux attach -t herdr"
+}
+
+module "herdr" {
+  count           = data.coder_workspace.me.start_count
+  source          = "registry.coder.com/gojnimer6553/herdr/coder"
+  version         = "1.1.0"
+  agent_id        = coder_agent.main.id
+  status_app_slug = coder_app.herdr.slug
+}
+```
+
+The reporter authenticates with `CODER_AGENT_TOKEN` and repeats `working` reports at most once every 5 minutes. Its log is at `$HOME/.coder-modules/gojnimer6553/herdr/logs/report-status.log`.
+
 ### Skip installation and use a pre-baked image
 
 ```tf
 module "herdr" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/gojnimer6553/herdr/coder"
-  version  = "1.0.0"
+  version  = "1.1.0"
   agent_id = coder_agent.main.id
   install  = false
 }

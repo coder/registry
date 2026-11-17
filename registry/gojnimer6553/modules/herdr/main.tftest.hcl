@@ -299,3 +299,30 @@ run "scripts_output_is_populated" {
     error_message = "scripts output should list at least the install and start scripts"
   }
 }
+
+run "status_app_slug_is_passed_to_start_script" {
+  command = plan
+
+  variables {
+    agent_id        = "test-agent"
+    status_app_slug = "herdr"
+  }
+
+  assert {
+    condition     = strcontains(local.start_script, "ARG_STATUS_APP_SLUG='herdr'")
+    error_message = "status_app_slug should be passed to the start script"
+  }
+}
+
+run "status_app_slug_validation" {
+  command = plan
+
+  variables {
+    agent_id        = "test-agent"
+    status_app_slug = "Not A Slug"
+  }
+
+  expect_failures = [
+    var.status_app_slug,
+  ]
+}

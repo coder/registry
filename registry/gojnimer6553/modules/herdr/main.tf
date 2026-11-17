@@ -170,6 +170,24 @@ variable "group" {
   default     = null
 }
 
+variable "status_app_slug" {
+  description = <<-EOT
+    Slug of a coder_app on the same agent to report Herdr agent status to,
+    such as an app that attaches to Herdr's tmux session. When set, a
+    background reporter polls `herdr agent list` every 30 seconds and reports
+    "working" to that app while any agent Herdr tracks is working, and "idle"
+    otherwise. Coder counts "working" as workspace activity, so autostop waits
+    while agents work even with no IDE, SSH, or web terminal connection open.
+  EOT
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.status_app_slug == "" || can(regex("^[a-z0-9](-?[a-z0-9])*$", var.status_app_slug))
+    error_message = "status_app_slug must be a valid coder_app slug (lowercase letters, numbers, and single hyphens)."
+  }
+}
+
 variable "pre_install_script" {
   description = "Custom script to run before installing Herdr. Can be used for dependency ordering between modules."
   type        = string
@@ -227,8 +245,10 @@ locals {
     # Newline-delimited rather than JSON: the start script parses this with
     # a plain `while read` loop so it doesn't need a jq dependency the
     # workspace image may not have.
-    ARG_PLUGINS           = join("\n", var.plugins)
-    ARG_POST_START_SCRIPT = var.post_start_script != null ? var.post_start_script : ""
+    ARG_PLUGINS              = join("\n", var.plugins)
+    ARG_POST_START_SCRIPT    = var.post_start_script != null ? var.post_start_script : ""
+    ARG_STATUS_APP_SLUG      = var.status_app_slug
+    ARG_REPORT_STATUS_SCRIPT = var.status_app_slug != "" ? base64encode(templatefile("${path.module}/scripts/report-status.sh.tftpl", {})) : ""
   })
 }
 

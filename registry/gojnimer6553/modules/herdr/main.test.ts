@@ -73,6 +73,9 @@ const FAKE_HERDR_BINARY = [
   '    echo "status: stopped"',
   "  fi",
   "  exit 0",
+  'elif [ "$1" = "agent" ] && [ "$2" = "list" ]; then',
+  `  echo '{"id":"cli:agent:list","result":{"agents":[{"agent":"claude","agent_status":"working"}],"type":"agent_list"}}'`,
+  "  exit 0",
   'elif [ "$1" = "plugin" ] && [ "$2" = "install" ]; then',
   '  spec="$3"',
   '  case "$spec" in',
@@ -409,6 +412,53 @@ describe("herdr", async () => {
       );
       expect(pluginIdx).toBeGreaterThan(-1);
       expect(postStartIdx).toBeGreaterThan(pluginIdx);
+    } finally {
+      await removeContainer(id);
+    }
+  });
+
+  it("reports working to status_app_slug while a Herdr agent is working", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      install: false,
+      tmux_session: "herdr-test-status",
+      status_app_slug: "herdr",
+    });
+    const { install, start } = collectScripts(state);
+
+    const id = await runContainer("node:22-bookworm-slim");
+    try {
+      await writeCoder(id, "#!/bin/bash\nexit 0\n");
+      await execContainer(id, ["bash", "-c", install]);
+      await installFakeHerdrBinary(id);
+      // Fake curl in the reporter's PATH that records each request.
+      await writeFileContainer(
+        id,
+        "/root/.local/bin/curl",
+        '#!/bin/bash\necho "$@" >> /root/.curl-log\n',
+      );
+      await execContainer(id, ["chmod", "755", "/root/.local/bin/curl"]);
+
+      const output = await execContainer(id, [
+        "bash",
+        "-c",
+        `export CODER_AGENT_URL=http://coder.test/ CODER_AGENT_TOKEN=agent-token\n${start}`,
+      ]);
+      expect(output.exitCode).toBe(0);
+      expect(output.stdout).toContain(
+        "Reporting Herdr agent status to app 'herdr'",
+      );
+
+      const curlLog = await execContainer(id, [
+        "bash",
+        "-c",
+        "for i in $(seq 1 20); do [ -s /root/.curl-log ] && break; sleep 0.5; done; cat /root/.curl-log",
+      ]);
+      expect(curlLog.stdout).toContain(
+        "http://coder.test/api/v2/workspaceagents/me/app-status",
+      );
+      expect(curlLog.stdout).toContain("Coder-Session-Token: agent-token");
+      expect(curlLog.stdout).toContain('"app_slug":"herdr","state":"working"');
     } finally {
       await removeContainer(id);
     }
