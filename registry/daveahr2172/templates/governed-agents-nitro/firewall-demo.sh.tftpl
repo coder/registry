@@ -67,27 +67,30 @@ ghrepo() {
 }
 
 # ghprobe LABEL KIND CURL_ARGS... sends the request with the workspace's own
-# GitHub credential and says whether the credential allowed it. KIND is read
-# or write. Write probes are well formed but cannot succeed: a branch points
-# at a commit that does not exist, and a gist file is empty. GitHub checks
-# permission first for these, so 403 means the credential may not write and
-# 422 means it may, and nothing is created either way. Empty bodies do not
-# work: GitHub rejects some of them with 422 before it checks permission.
+# GitHub credential and reports GitHub's answer. KIND is read or write.
+# Write probes are well formed but cannot succeed (a branch at a commit that
+# does not exist, a gist with an empty file), so nothing is created. A 403
+# or 404 shows the credential was denied, and the row prints GitHub's
+# reason. A 422 is inconclusive: GitHub rejected the request as invalid,
+# which does not show whether the credential could write. Only a real,
+# cleaned-up write would prove that.
 ghprobe() {
-	local label="$1" kind="$2" code
+	local label="$1" kind="$2" resp code msg
 	shift 2
 	if [ -z "$token" ]; then
 		printf '%s|%s\n' "$label" "n/a      $token_reason"
 		return
 	fi
-	code="$(ghcurl -o /dev/null -w '%%{http_code}' "$@")"
+	resp="$(ghcurl -w '\n%%{http_code}' "$@")"
+	code="$(printf '%s\n' "$resp" | tail -n 1)"
+	msg="$(printf '%s\n' "$resp" | grep -o '"message": *"[^"]*"' | head -1 | sed -E 's/.*"([^"]*)"$/\1/' | cut -c1-60)"
 	case "$kind:$code" in
 		read:200) printf '%s|%s\n' "$label" "ALLOWED  HTTP 200: the credential is valid" ;;
-		write:422) printf '%s|%s\n' "$label" "ALLOWED  HTTP 422: the credential may write here (nothing created)" ;;
 		write:2??) printf '%s|%s\n' "$label" "CREATED  HTTP $code: check GitHub and delete it" ;;
+		write:422) printf '%s|%s\n' "$label" "UNCLEAR  HTTP 422: invalid request; write permission not shown" ;;
 		*:401) printf '%s|%s\n' "$label" "REJECTED HTTP 401: the credential is invalid or expired" ;;
-		*:403) printf '%s|%s\n' "$label" "BLOCKED  credential scope (HTTP 403)" ;;
-		*:404) printf '%s|%s\n' "$label" "BLOCKED  HTTP 404: no access, or no such repository" ;;
+		*:403) printf '%s|%s\n' "$label" "DENIED   HTTP 403: $${msg:-forbidden}" ;;
+		*:404) printf '%s|%s\n' "$label" "DENIED   HTTP 404: no access, or no such repository" ;;
 		*:000) printf '%s|%s\n' "$label" "ERROR    no response" ;;
 		*) printf '%s|%s\n' "$label" "OTHER    HTTP $code" ;;
 	esac
