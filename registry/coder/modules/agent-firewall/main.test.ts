@@ -14,13 +14,11 @@ import {
   testRequiredVariables,
   runContainer,
   removeContainer,
-} from "~test";
-import {
   loadTestFile,
   writeExecutable,
   execModuleScript,
   extractCoderEnvVars,
-} from "../agentapi/test-util";
+} from "~test";
 
 let cleanupFunctions: (() => Promise<void>)[] = [];
 const registerCleanup = (cleanup: () => Promise<void>) => {
