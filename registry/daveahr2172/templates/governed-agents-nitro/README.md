@@ -196,6 +196,8 @@ Prebuilds need Coder Premium. By default each of the three presets keeps one pre
 2. To keep a running Pod for forensics, cut its network instead. With VPC CNI 1.21 or later, an Admin-tier `ClusterNetworkPolicy` that denies all traffic for Pods with a label such as `coder.com/quarantine=true` takes effect before every NetworkPolicy; label the workspace and proxy Pods to apply it. It blocks new connections only: in testing, the agent's open connection to Coder and `coder ssh` over it kept working. Stop the workspace once you have the evidence.
 3. Suspend the user, revoke their tokens, and keep the proxy, firewall, and AI Gateway logs.
 
+The template writes the proxy log only to the proxy container's stdout, so `coder stop` deletes it with the proxy Pod. Ship the proxy container logs to a log store before you rely on them, for example with a log-shipping DaemonSet on the agent nodes, owned by the platform team and outside the workspace namespace.
+
 Do not delete the workspace NetworkPolicy to stop a workspace. Without `DefaultDeny` on the node, that opens the Pod.
 
 ## Firewall demo
