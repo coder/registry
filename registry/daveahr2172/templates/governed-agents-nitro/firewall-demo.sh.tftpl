@@ -11,6 +11,7 @@
 set -u
 
 ORG="${github_org}"
+GITHUB_AUTH_ID="${github_auth_id}"
 BUCKET="${bucket}"
 KIRO_RUNTIME="${kiro_runtime_host}"
 
@@ -31,12 +32,65 @@ probe() {
 		verdict="ERROR    proxy tunnel opened, remote connection failed (curl exit $rc)"
 	elif [ "$code" = 000 ] || [ "$rc" = 7 ] || [ "$rc" = 28 ]; then
 		verdict="ERROR    connection failed (check NetworkPolicy and egress logs)"
-	elif [ "$code" = 401 ] || [ "$code" = 403 ]; then
-		verdict="REACHED  HTTP $code: only credentials stop it"
+	elif [ "$code" = 401 ]; then
+		verdict="REACHED  HTTP 401: no credential sent; the network allowed it"
+	elif [ "$code" = 403 ]; then
+		verdict="REACHED  HTTP 403: the service refused; the network allowed it"
 	else
 		verdict="ALLOWED  HTTP $code"
 	fi
 	printf '%s|%s\n' "$label" "$verdict"
+}
+
+# ghtoken prints the workspace's GitHub credential from Coder external auth,
+# or a reason it has none, and returns non-zero without one.
+ghtoken() {
+	if [ -z "$GITHUB_AUTH_ID" ]; then
+		echo "no GitHub external auth in this template"
+		return 1
+	fi
+	if ! coder external-auth access-token "$GITHUB_AUTH_ID" 2> /dev/null; then
+		echo "GitHub not linked for this user"
+		return 1
+	fi
+}
+
+# ghcurl CURL_ARGS... runs curl with the GitHub credential. The token goes
+# to curl on stdin, not on the command line.
+ghcurl() {
+	printf 'Authorization: Bearer %s\n' "$token" | curl -s --connect-timeout 3 -m 10 -H @- -H 'Accept: application/vnd.github+json' "$@" 2> /dev/null
+}
+
+# ghrepo URL prints the full name of the first repository the API lists.
+ghrepo() {
+	ghcurl "$1" | grep -o '"full_name": *"[^"]*"' | head -1 | sed -E 's/.*"([^"]+)"$/\1/'
+}
+
+# ghprobe LABEL KIND CURL_ARGS... sends the request with the workspace's own
+# GitHub credential and says whether the credential allowed it. KIND is read
+# or write. Write probes are well formed but cannot succeed: a branch points
+# at a commit that does not exist, and a gist file is empty. GitHub checks
+# permission first for these, so 403 means the credential may not write and
+# 422 means it may, and nothing is created either way. Empty bodies do not
+# work: GitHub rejects some of them with 422 before it checks permission.
+ghprobe() {
+	local label="$1" kind="$2" code
+	shift 2
+	if [ -z "$token" ]; then
+		printf '%s|%s\n' "$label" "n/a      $token_reason"
+		return
+	fi
+	code="$(ghcurl -o /dev/null -w '%%{http_code}' "$@")"
+	case "$kind:$code" in
+		read:200) printf '%s|%s\n' "$label" "ALLOWED  HTTP 200: the credential is valid" ;;
+		write:422) printf '%s|%s\n' "$label" "ALLOWED  HTTP 422: the credential may write here (nothing created)" ;;
+		write:2??) printf '%s|%s\n' "$label" "CREATED  HTTP $code: check GitHub and delete it" ;;
+		*:401) printf '%s|%s\n' "$label" "REJECTED HTTP 401: the credential is invalid or expired" ;;
+		*:403) printf '%s|%s\n' "$label" "BLOCKED  credential scope (HTTP 403)" ;;
+		*:404) printf '%s|%s\n' "$label" "BLOCKED  HTTP 404: no access, or no such repository" ;;
+		*:000) printf '%s|%s\n' "$label" "ERROR    no response" ;;
+		*) printf '%s|%s\n' "$label" "OTHER    HTTP $code" ;;
+	esac
 }
 
 # s3probe LABEL ARGS... runs the AWS CLI and prints "LABEL|VERDICT".
@@ -85,12 +139,29 @@ run_probes() {
 		probe "Kiro service" "https://$KIRO_RUNTIME/"
 		probe "Kiro self-update download" https://prod.download.cli.kiro.dev/
 	fi
-	echo "##GitHub"
+	echo "##GitHub, no credential"
 	probe "Read a public repository" https://api.github.com/repos/coder/coder
 	if [ -n "$ORG" ]; then
 		probe "Open an issue in $ORG/*" -X POST -H 'Content-Type: application/json' -d '{"title":"firewall demo"}' "https://api.github.com/repos/$ORG/firewall-demo/issues"
 	fi
 	probe "Create a public gist" -X POST -H 'Content-Type: application/json' -d '{"files":{"x.txt":{"content":"secret"}}}' https://api.github.com/gists
+	echo "##GitHub, with this workspace's credential"
+	token_reason="$(ghtoken)" && token="$token_reason" || token=""
+	ghprobe "Who am I (credential check)" read https://api.github.com/user
+	ref='{"ref":"refs/heads/firewall-demo-probe","sha":"0000000000000000000000000000000000000000"}'
+	org_repo=""
+	own_repo=""
+	if [ -n "$token" ]; then
+		[ -n "$ORG" ] && org_repo="$(ghrepo "https://api.github.com/orgs/$ORG/repos?per_page=1")"
+		own_repo="$(ghrepo "https://api.github.com/user/repos?affiliation=owner&per_page=1")"
+	fi
+	if [ -n "$ORG" ]; then
+		ghprobe "Push a branch to $${org_repo:-a repo in $ORG}" write -X POST -H 'Content-Type: application/json' -d "$ref" "https://api.github.com/repos/$${org_repo:-$ORG/none}/git/refs"
+	fi
+	ghprobe "Push a branch to $${own_repo:-a personal repo}" write -X POST -H 'Content-Type: application/json' -d "$ref" "https://api.github.com/repos/$${own_repo:-none/none}/git/refs"
+	ghprobe "Create a gist" write -X POST -H 'Content-Type: application/json' -d '{"files":{"probe.txt":{"content":""}}}' https://api.github.com/gists
+	token=""
+	token_reason=""
 	echo "##Package registries"
 	probe "npm: download a package" https://registry.npmjs.org/left-pad
 	probe "PyPI: download a package" https://pypi.org/simple/requests/

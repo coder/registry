@@ -4,27 +4,27 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.12"
+      version = "~> 2.20"
     }
     kubernetes = {
       source  = "hashicorp/kubernetes"
-      version = ">= 2.23"
+      version = "~> 3.5"
     }
     aws = {
       source  = "hashicorp/aws"
-      version = ">= 5.40"
+      version = "~> 6.72"
     }
     http = {
       source  = "hashicorp/http"
-      version = ">= 3.4"
+      version = "~> 3.6"
     }
     time = {
       source  = "hashicorp/time"
-      version = ">= 0.11"
+      version = "~> 0.14"
     }
     random = {
       source  = "hashicorp/random"
-      version = ">= 3.6"
+      version = "~> 3.9"
     }
   }
 }
@@ -40,7 +40,9 @@ terraform {
 #   2. Admission: the operator can enforce Pod Security restricted on the namespace.
 #   3. Network, layer 3 and 4: a default-deny NetworkPolicy for the Coder
 #      server, this workspace's proxy, and the EKS Pod Identity Agent. The
-#      operator must enable NetworkPolicy enforcement on the cluster.
+#      operator must enable NetworkPolicy enforcement on the cluster, and on
+#      EKS Auto Mode should set networkPolicy = DefaultDeny on the agent
+#      NodeClass, so a Pod without a policy has no traffic.
 #   4. Network, host names: a Squid egress proxy in its own Pod. It allows
 #      only the host names of the chosen egress bundles and logs requests.
 #   5. AWS egress (optional, configured outside this template): the operator
@@ -297,7 +299,7 @@ variable "storage_class_name" {
 }
 
 variable "network_policy_gate" {
-  description = "Start the Coder agent only after the NetworkPolicy blocks the Kubernetes API server, and stop it if that ever changes."
+  description = "Readiness check: start the Coder agent only after connections to the Kubernetes API server fail, and stop it if the API server becomes reachable. Not a security boundary: the workspace user can kill it. Enforcement comes from the cluster: NetworkPolicy, and on EKS Auto Mode a DefaultDeny agent NodeClass."
   type        = bool
   default     = true
 }
@@ -470,6 +472,16 @@ locals {
   nitro_sandbox      = contains(["isolated-sandbox", "confidential-sandbox"], var.sandbox_runtime_class)
   workspace_limits   = { cpu = "2", memory = "4Gi" }
   workspace_requests = local.nitro_sandbox ? local.workspace_limits : { cpu = "500m", memory = "1Gi" }
+
+  # Inside a Nitro Sandbox the kubelet cannot measure the writable layer or
+  # emptyDir use, so it cannot evict on them. The sandbox instead gets a
+  # disk the size of the ephemeral-storage limit, shared by / and /tmp,
+  # and writes past it fail with ENOSPC. Measured on EKS 1.37 Auto Mode:
+  # an 8 GiB disk, and 2.5 GiB written to /tmp with no eviction. The /tmp
+  # size limit applies only on the node default runtime. The home volume
+  # is a PVC and does not count.
+  workspace_ephemeral = { requests = "1Gi", limits = "8Gi" }
+  tmp_size_limit      = "2Gi"
 }
 
 data "coder_parameter" "profile" {
@@ -992,8 +1004,8 @@ resource "kubernetes_deployment_v1" "proxy" {
             }
           }
           resources {
-            requests = { cpu = "50m", memory = "64Mi" }
-            limits   = { cpu = "500m", memory = "256Mi" }
+            requests = { cpu = "50m", memory = "64Mi", "ephemeral-storage" = "64Mi" }
+            limits   = { cpu = "500m", memory = "256Mi", "ephemeral-storage" = "256Mi" }
           }
           readiness_probe {
             tcp_socket {
@@ -1033,6 +1045,7 @@ resource "kubernetes_config_map_v1" "demo" {
   data = {
     "firewall-demo.sh" = templatefile("${path.module}/firewall-demo.sh.tftpl", {
       github_org        = var.github_org
+      github_auth_id    = var.github_external_auth_id
       bucket            = local.aws_identity ? var.artifacts_bucket : ""
       kiro_runtime_host = local.profile.claude && var.enable_kiro ? local.kiro_hosts[0] : ""
     })
@@ -1229,8 +1242,8 @@ resource "kubernetes_deployment_v1" "workspace" {
           }
 
           resources {
-            requests = local.workspace_requests
-            limits   = local.workspace_limits
+            requests = merge(local.workspace_requests, { "ephemeral-storage" = local.workspace_ephemeral.requests })
+            limits   = merge(local.workspace_limits, { "ephemeral-storage" = local.workspace_ephemeral.limits })
           }
 
           volume_mount {
@@ -1259,7 +1272,9 @@ resource "kubernetes_deployment_v1" "workspace" {
         }
         volume {
           name = "tmp"
-          empty_dir {}
+          empty_dir {
+            size_limit = local.tmp_size_limit
+          }
         }
         dynamic "volume" {
           for_each = local.profile.egress ? [1] : []
