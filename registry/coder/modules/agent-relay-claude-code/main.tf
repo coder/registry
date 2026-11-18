@@ -388,3 +388,11 @@ output "client_platform" {
   description = "Surface the session was created from (web_claude_ai, claude_in_slack, ...), or empty when the relay predates the parameter or the workspace was created manually."
   value       = data.coder_parameter.agent_relay_client_platform.value
 }
+
+# A template cannot declare its own agent_relay_session_id parameter to read
+# the value, because Coder rejects two parameters with the same name, so the
+# module re-exports it.
+output "session_id" {
+  description = "Anthropic session this workspace serves, as stamped by Agent Relay on dispatch, or empty when the workspace was not dispatched by Agent Relay. The same session keeps the same ID across redeliveries and when it resumes on a fresh workspace, so a template can key saved state on it."
+  value       = data.coder_parameter.agent_relay_session_id.value
+}
