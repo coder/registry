@@ -1,12 +1,12 @@
 ---
-display_name: Agent Workspaces on EKS with Nitro Sandboxes
+display_name: AWS Nitro Sandboxes
 description: Run AI agent workspaces on Amazon EKS in Nitro Sandboxes, behind a default-deny NetworkPolicy and a host name egress proxy
 icon: ../../../../.icons/aws.svg
 verified: false
 tags: [kubernetes, aws, eks, ai, agents, sandbox, security]
 ---
 
-# Agent Workspaces on EKS with Nitro Sandboxes
+# AWS Nitro Sandboxes
 
 Run each workspace as one Pod on Amazon EKS, for AI agents that work on code. With the `isolated-sandbox` RuntimeClass, each workspace Pod runs in its own AWS Nitro Sandbox, a lightweight VM with its own kernel. A default-deny NetworkPolicy and a Squid egress proxy limit where the workspace can connect. EKS Pod Identity can give each workspace its own AWS session with no static keys.
 
