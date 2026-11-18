@@ -155,6 +155,51 @@ run "test_ai_gateway_enabled" {
   }
 }
 
+run "test_ai_gateway_token_override" {
+  command = plan
+
+  variables {
+    agent_id          = "test-agent-ai-gateway-token"
+    enable_ai_gateway = true
+    ai_gateway_token  = "scoped-token"
+  }
+
+  override_data {
+    target = data.coder_workspace_owner.me
+    values = {
+      session_token = "mock-session-token"
+    }
+  }
+
+  assert {
+    condition     = coder_env.anthropic_auth_token[0].value == "scoped-token"
+    error_message = "ANTHROPIC_AUTH_TOKEN should use ai_gateway_token instead of the owner session token"
+  }
+}
+
+run "test_ai_gateway_token_override_managed_settings" {
+  command = plan
+
+  variables {
+    agent_id              = "test-agent-ai-gateway-token-managed"
+    enable_ai_gateway     = true
+    authentication_config = "managed_settings"
+    ai_gateway_token      = "scoped-token"
+  }
+
+  override_data {
+    target = data.coder_workspace_owner.me
+    values = {
+      session_token = "mock-session-token"
+    }
+  }
+
+  assert {
+    condition     = local.managed_settings_effective.env["ANTHROPIC_AUTH_TOKEN"] == "scoped-token"
+    error_message = "managed settings should use ai_gateway_token instead of the owner session token"
+  }
+}
+
 run "test_ai_gateway_validation_with_api_key" {
   command = plan
 

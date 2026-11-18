@@ -13,7 +13,7 @@ Install and configure the [Claude Code](https://docs.anthropic.com/en/docs/agent
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.5.2"
+  version           = "5.6.0"
   agent_id          = coder_agent.main.id
   anthropic_api_key = "xxxx-xxxxx-xxxx"
 }
@@ -29,7 +29,7 @@ Provide exactly one authentication method:
 - **Anthropic API key**: get one from the [Anthropic Console](https://console.anthropic.com/dashboard) and pass it as `anthropic_api_key`.
 - **API key helper script** (`api_key_helper`): a script that prints a short-lived Anthropic API key to stdout. Recommended for production deployments where keys come from Vault, AWS Secrets Manager, or cloud IAM. See [Short-lived credentials via api_key_helper](#short-lived-credentials-via-api_key_helper).
 - **Claude.ai OAuth token** (Pro, Max, or Enterprise accounts): generate one by running `claude setup-token` locally and pass it as `claude_code_oauth_token`.
-- **Coder AI Gateway** (Coder Premium, Coder >= 2.30.0): set `enable_ai_gateway = true`. The module authenticates against the gateway using the workspace owner's session token. Do not combine with `anthropic_api_key` or `claude_code_oauth_token`.
+- **Coder AI Gateway** (Coder Premium, Coder >= 2.30.0): set `enable_ai_gateway = true`. By default the module authenticates against the gateway using the workspace owner's session token, which has full access to the Coder API. Set `ai_gateway_token` to use a token with narrow scopes instead. See [Limit the AI Gateway token](#limit-the-ai-gateway-token). Do not combine with `anthropic_api_key` or `claude_code_oauth_token`.
 - **Amazon Bedrock**: set `use_bedrock = true`. Authentication uses the workspace's AWS credential chain. See [Usage with AWS Bedrock](#usage-with-aws-bedrock).
 - **Google Vertex AI**: set `use_vertex = true`. Authentication uses Google Application Default Credentials inside the workspace. See [Usage with Google Vertex AI](#usage-with-google-vertex-ai).
 - **Microsoft Foundry**: set `use_foundry = true` and provide either `foundry_resource` or `foundry_base_url`. Authentication uses the Azure default credential chain unless a Foundry API key or bearer token is provided separately. See [Usage with Microsoft Foundry](#usage-with-microsoft-foundry).
@@ -52,7 +52,7 @@ locals {
 
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.5.2"
+  version           = "5.6.0"
   agent_id          = coder_agent.main.id
   workdir           = local.claude_workdir
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -83,7 +83,7 @@ resource "coder_app" "claude" {
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.5.2"
+  version           = "5.6.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   enable_ai_gateway = true
@@ -100,6 +100,26 @@ Claude Code then routes API requests through Coder's AI Gateway instead of direc
 > [!CAUTION]
 > `enable_ai_gateway = true` is mutually exclusive with `anthropic_api_key` and `claude_code_oauth_token`. Setting any of them together fails at plan time.
 
+#### Limit the AI Gateway token
+
+The workspace owner's session token has full access to the Coder API. To give Claude Code a token with narrower scopes, use the [ai-gateway-token](https://registry.coder.com/modules/coder-labs/ai-gateway-token) module to create a token with narrow scopes during the build, and pass it with `ai_gateway_token`. AI Gateway doesn't attribute these requests to the workspace; refer to that module's README for details.
+
+```tf
+module "ai_gateway_token" {
+  source  = "registry.coder.com/coder-labs/ai-gateway-token/coder"
+  version = "1.0.0"
+}
+
+module "claude-code" {
+  source            = "registry.coder.com/coder/claude-code/coder"
+  version           = "5.6.0"
+  agent_id          = coder_agent.main.id
+  workdir           = "/home/coder/project"
+  enable_ai_gateway = true
+  ai_gateway_token  = module.ai_gateway_token.token
+}
+```
+
 #### Keep gateway configuration out of the shell environment
 
 By default the module wires `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN` via `coder_env` resources, which means they show up in `env` output inside the workspace shell. Set `authentication_config = "managed_settings"` to instead write those two values into the `env` block of `/etc/claude-code/managed-settings.d/10-coder.json`, where Claude Code still reads them but they never appear in the shell environment.
@@ -107,7 +127,7 @@ By default the module wires `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN` via 
 ```tf
 module "claude-code" {
   source                = "registry.coder.com/coder/claude-code/coder"
-  version               = "5.5.2"
+  version               = "5.6.0"
   agent_id              = coder_agent.main.id
   workdir               = "/home/coder/project"
   enable_ai_gateway     = true
@@ -127,7 +147,7 @@ Setting `managed_settings = null` removes this module's policy file on the next 
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.5.2"
+  version           = "5.6.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -156,7 +176,7 @@ Setting `api_key_helper = null` removes the module's registration file and `~/.c
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.5.2"
+  version  = "5.6.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -175,7 +195,7 @@ Or, sourcing from AWS Secrets Manager:
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.5.2"
+  version  = "5.6.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -200,7 +220,7 @@ This example shows version pinning, a pre-installed binary path, a custom model,
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.5.2"
+  version  = "5.6.0"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -264,7 +284,7 @@ Downstream `coder_script` resources can wait for this module's install pipeline 
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.5.2"
+  version           = "5.6.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -294,7 +314,7 @@ Set `use_bedrock = true` to route Claude Code through Amazon Bedrock. The module
 ```tf
 module "claude-code" {
   source      = "registry.coder.com/coder/claude-code/coder"
-  version     = "5.5.2"
+  version     = "5.6.0"
   agent_id    = coder_agent.main.id
   workdir     = "/home/coder/project"
   use_bedrock = true
@@ -347,7 +367,7 @@ Set `use_vertex = true` to route Claude Code through Google Vertex AI. The modul
 ```tf
 module "claude-code" {
   source     = "registry.coder.com/coder/claude-code/coder"
-  version    = "5.5.2"
+  version    = "5.6.0"
   agent_id   = coder_agent.main.id
   workdir    = "/home/coder/project"
   use_vertex = true
@@ -382,7 +402,7 @@ This example uses the Azure default credential chain. Attach a managed identity 
 ```tf
 module "claude-code" {
   source           = "registry.coder.com/coder/claude-code/coder"
-  version          = "5.5.2"
+  version          = "5.6.0"
   agent_id         = coder_agent.main.id
   workdir          = "/home/coder/project"
   use_foundry      = true
@@ -426,7 +446,7 @@ Set `anthropic_base_url` to point Claude Code at a self-hosted gateway or proxy 
 ```tf
 module "claude-code" {
   source             = "registry.coder.com/coder/claude-code/coder"
-  version            = "5.5.2"
+  version            = "5.6.0"
   agent_id           = coder_agent.main.id
   workdir            = "/home/coder/project"
   anthropic_base_url = "https://llm-gateway.example.com/anthropic"
@@ -445,7 +465,7 @@ The module automatically tags every span and metric with `coder.workspace_id`, `
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.5.2"
+  version           = "5.6.0"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"
