@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+command_exists() {
+  command -v "$1" > /dev/null 2>&1
+}
+
+ARG_INSTALL='${ARG_INSTALL}'
+ARG_AMP_VERSION=$(echo -n '${ARG_AMP_VERSION}' | base64 -d)
+ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
+ARG_INSTRUCTION_PROMPT=$(echo -n '${ARG_INSTRUCTION_PROMPT}' | base64 -d)
+ARG_BASE_CONFIG=$(echo -n '${ARG_BASE_CONFIG}' | base64 -d)
+ARG_MCP_CONFIG=$(echo -n '${ARG_MCP_CONFIG}' | base64 -d)
+
+export PATH="$HOME/.local/bin:$HOME/.amp/bin:$PATH"
+
+SETTINGS_FILE="$${AMP_SETTINGS_FILE:-$HOME/.config/amp/settings.json}"
+
+echo "--------------------------------"
+printf "install_amp: %s\n" "$${ARG_INSTALL}"
+printf "amp_version: %s\n" "$${ARG_AMP_VERSION:-latest}"
+printf "workdir: %s\n" "$${ARG_WORKDIR}"
+echo "--------------------------------"
+
+require_jq() {
+  if ! command_exists jq; then
+    echo "ERROR: 'jq' is required to $1 but was not found." >&2
+    exit 1
+  fi
+}
+
+function add_path_to_shell_profiles() {
+  local path_dir="$1"
+
+  for profile in "$HOME/.profile" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+    if [ -f "$${profile}" ]; then
+      if ! grep -q "$${path_dir}" "$${profile}" 2> /dev/null; then
+        echo "export PATH=\"\$PATH:$${path_dir}\"" >> "$${profile}"
+        echo "Added $${path_dir} to $${profile}"
+      fi
+    fi
+  done
+
+  local fish_config="$HOME/.config/fish/config.fish"
+  if [ -f "$${fish_config}" ]; then
+    if ! grep -q "$${path_dir}" "$${fish_config}" 2> /dev/null; then
+      echo "fish_add_path $${path_dir}" >> "$${fish_config}"
+      echo "Added $${path_dir} to $${fish_config}"
+    fi
+  fi
+}
+
+installed_amp_version() {
+  amp --version 2> /dev/null | awk '{print $1}'
+}
+
+function ensure_amp_in_path() {
+  local AMP_BIN=""
+  if command_exists amp; then
+    AMP_BIN=$(command -v amp)
+  fi
+
+  if [ -z "$${AMP_BIN}" ] || [ ! -x "$${AMP_BIN}" ]; then
+    echo "Amp CLI binary (amp) was not found or is not executable." >&2
+    return 1
+  fi
+
+  local version
+  if ! version=$(installed_amp_version) || [ -z "$${version}" ]; then
+    echo "Amp CLI binary could not be executed." >&2
+    return 1
+  fi
+  printf "Amp CLI version: %s\n" "$${version}"
+
+  if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ] && [ ! -e "$${CODER_SCRIPT_BIN_DIR}/amp" ]; then
+    ln -s "$${AMP_BIN}" "$${CODER_SCRIPT_BIN_DIR}/amp"
+    echo "Created symlink: $${CODER_SCRIPT_BIN_DIR}/amp -> $${AMP_BIN}"
+  fi
+
+  add_path_to_shell_profiles "$(dirname "$${AMP_BIN}")"
+}
+
+# Subshell scopes the temp-file cleanup trap to this function.
+install_with_official_installer() (
+  local installer_file
+  installer_file=$(mktemp)
+  trap 'rm -f "$${installer_file}"' EXIT
+
+  if ! curl --fail --silent --show-error --location \
+    --retry 2 --retry-delay 1 --retry-all-errors \
+    --connect-timeout 10 --max-time 300 \
+    --output "$${installer_file}" https://ampcode.com/install.sh; then
+    echo "Amp CLI installer could not be downloaded after up to 3 attempts." >&2
+    return 1
+  fi
+
+  if ! bash -n "$${installer_file}"; then
+    echo "Amp CLI installer download was invalid." >&2
+    return 1
+  fi
+
+  # Installs to ~/.amp/bin and links ~/.local/bin/amp; empty AMP_VERSION means latest.
+  if ! AMP_VERSION="$${ARG_AMP_VERSION}" bash "$${installer_file}"; then
+    echo "Amp CLI installation failed." >&2
+    return 1
+  fi
+)
+
+install_amp() {
+  if [ "$${ARG_INSTALL}" != "true" ]; then
+    echo "Skipping Amp CLI installation as per configuration."
+    if ! ensure_amp_in_path; then
+      echo "ERROR: install_amp is false but a working 'amp' was not found on PATH." >&2
+      exit 1
+    fi
+    echo "Validated existing Amp CLI"
+    return
+  fi
+
+  echo "Installing Amp CLI"
+  install_with_official_installer
+
+  if ! ensure_amp_in_path; then
+    echo "ERROR: Failed to install Amp CLI" >&2
+    exit 1
+  fi
+  echo "Installed Amp CLI"
+}
+
+setup_workdir() {
+  if [ -n "$${ARG_WORKDIR}" ] && [ ! -d "$${ARG_WORKDIR}" ]; then
+    echo "Creating workdir: $${ARG_WORKDIR}"
+    mkdir -p "$${ARG_WORKDIR}"
+  fi
+}
+
+write_instruction_prompt() {
+  if [ -z "$${ARG_INSTRUCTION_PROMPT}" ]; then
+    return
+  fi
+
+  local agents_file="$HOME/.config/AGENTS.md"
+  mkdir -p "$(dirname "$${agents_file}")"
+  printf '%s\n' "$${ARG_INSTRUCTION_PROMPT}" > "$${agents_file}"
+  echo "Wrote instruction prompt to $${agents_file}"
+}
+
+write_base_config() {
+  if [ -z "$${ARG_BASE_CONFIG}" ]; then
+    return
+  fi
+  mkdir -p "$(dirname "$${SETTINGS_FILE}")"
+  printf '%s\n' "$${ARG_BASE_CONFIG}" > "$${SETTINGS_FILE}"
+  echo "Wrote Amp settings to $${SETTINGS_FILE}"
+}
+
+# Servers already in the file win on duplicate names, like `amp mcp add`.
+setup_mcp() {
+  if [ -z "$${ARG_MCP_CONFIG}" ]; then
+    return
+  fi
+  require_jq "configure Amp MCP servers"
+  mkdir -p "$(dirname "$${SETTINGS_FILE}")"
+  [ -f "$${SETTINGS_FILE}" ] || echo '{}' > "$${SETTINGS_FILE}"
+  if ! jq empty "$${SETTINGS_FILE}" > /dev/null 2>&1; then
+    echo "Warning: $${SETTINGS_FILE} is JSONC or invalid JSON; skipping MCP servers." >&2
+    return
+  fi
+  jq --argjson mcp "$${ARG_MCP_CONFIG}" '.["amp.mcpServers"] = $mcp + (.["amp.mcpServers"] // {})' \
+    "$${SETTINGS_FILE}" > "$${SETTINGS_FILE}.tmp"
+  mv "$${SETTINGS_FILE}.tmp" "$${SETTINGS_FILE}"
+  echo "Wrote MCP servers to $${SETTINGS_FILE}"
+}
+
+install_amp
+setup_workdir
+write_instruction_prompt
+write_base_config
+setup_mcp
+
+echo "Amp module setup completed."
