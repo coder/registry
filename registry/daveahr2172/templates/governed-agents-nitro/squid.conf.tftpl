@@ -1,0 +1,38 @@
+# Egress proxy for one workspace. Adapted from coder-labs/kubernetes-sandboxed
+# in coder/registry (Apache-2.0).
+#
+# It allows HTTPS to the host names of the profile and nothing else. It never
+# decrypts TLS, so it sees the host name in CONNECT but not the path.
+
+http_port 3128
+
+# The proxy resolves names itself. The workspace has no DNS.
+dns_nameservers ${dns_servers}
+
+# -n disables reverse DNS, so a raw IP address never matches a name.
+acl allowed dstdomain -n ${allowed_domains}
+
+# Checked after "allowed", so denied names never reach DNS and cannot leak
+# data in a lookup. Allowed names that resolve to private, link-local, or
+# metadata addresses are refused too.
+acl private_dst dst 0.0.0.0/8 10.0.0.0/8 100.64.0.0/10 127.0.0.0/8 169.254.0.0/16 172.16.0.0/12 192.0.0.0/24 192.168.0.0/16 198.18.0.0/15 224.0.0.0/3 ::/128 ::1 fc00::/7 fe80::/10
+
+acl CONNECT method CONNECT
+acl tls_port port 443
+acl ip6_literal dstdom_regex -n :
+
+http_access deny manager
+http_access deny ip6_literal
+
+# HTTPS only: a CONNECT tunnel to port 443. Plain HTTP is refused.
+http_access deny !CONNECT
+http_access deny CONNECT !tls_port
+http_access allow allowed !private_dst
+http_access deny all
+
+# Relay only. No cache, no pid file, logs to the container output.
+cache deny all
+pid_filename none
+cache_log stdio:/dev/stderr
+access_log stdio:/dev/stdout
+logfile_rotate 0
