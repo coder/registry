@@ -71,6 +71,54 @@ The workspace page shows the runtime class, service account, IAM role, chosen bu
 
 Workspace and proxy Pods never schedule on Fargate, which does not enforce NetworkPolicy or support Pod Identity.
 
+### Enforce placement (recommended)
+
+The template puts workspace and proxy Pods on the `node_pool` nodes and the workspace Pod in the sandbox RuntimeClass, but the cluster does not require it. Anyone who can change the template, or what the provisioner deploys, can run a Pod in the namespace on other nodes or without the sandbox, and so outside any firewall you put in front of the agent nodes. To make placement mandatory, add a `ValidatingAdmissionPolicy` for the workspace namespace. This example requires every new Pod to select the agent nodes, forbids setting `spec.nodeName` directly, and requires the sandbox RuntimeClass on every Pod except the egress proxy. Replace `coder.com/pool`, `agent-egress`, and `coder-workspaces` with your `node_pool` key, value, and namespace:
+
+```yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: coder-workspace-placement
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE"]
+        resources: ["pods"]
+  validations:
+    - expression: "!has(object.spec.nodeName)"
+      message: "Pods in this namespace must not set spec.nodeName."
+    - expression: >-
+        has(object.spec.affinity) && has(object.spec.affinity.nodeAffinity) &&
+        has(object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution) &&
+        object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms.all(t,
+          has(t.matchExpressions) && t.matchExpressions.exists(e,
+            e.key == 'coder.com/pool' && e.operator == 'In' && e.values == ['agent-egress']))
+      message: "Pods in this namespace must require the agent nodes (coder.com/pool=agent-egress)."
+    - expression: >-
+        (has(object.metadata.labels) && 'coder.com/role' in object.metadata.labels &&
+          object.metadata.labels['coder.com/role'] == 'proxy') ||
+        (has(object.spec.runtimeClassName) && object.spec.runtimeClassName == 'isolated-sandbox')
+      message: "Workspace Pods must use the isolated-sandbox RuntimeClass."
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: coder-workspace-placement
+spec:
+  policyName: coder-workspace-placement
+  validationActions: ["Warn", "Audit"]
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: coder-workspaces
+```
+
+Start with `validationActions: ["Warn", "Audit"]`, check that workspaces still start, then change it to `["Deny"]`. Any other tool that creates Pods in the namespace, such as a debugging or test Pod, must meet the same rules. The proxy is exempt from the RuntimeClass rule by its `coder.com/role=proxy` label, so a Pod that copies that label can skip the sandbox. It still has to run on the agent nodes. If you change `node_pool` or `sandbox_runtime_class`, change the policy to match, or new workspaces will not start.
+
 ### Coder connection
 
 Workspaces reach Coder by IP address only. Give the access URL static IPv4 addresses, for example with a Network Load Balancer, and set `coder_egress_cidrs` to them. If the access URL uses a host name, set `coder_host_ip` to one of those addresses. Connections to the workspace relay through the Coder server, because the Pod accepts no inbound traffic.
