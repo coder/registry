@@ -9,6 +9,7 @@ mavrick = "mavrick" # Username
 inh = "inh" # Option in setpriv command
 exportfs = "exportfs" # nfs related binary
 ba = "ba" # sed branch command in :a;$!{N;ba} pattern
+readby = "readby" # AppArmor ptrace access mode
 
 [files]
 extend-exclude = ["registry/coder/.images/aws-envbuilder-architecture.svg"] #False positive
