@@ -13,7 +13,7 @@ Install and configure the [Amp CLI](https://ampcode.com/docs/cli) in your worksp
 ```tf
 module "amp" {
   source      = "registry.coder.com/coder-labs/sourcegraph-amp/coder"
-  version     = "4.0.0"
+  version     = "4.0.1"
   agent_id    = coder_agent.main.id
   amp_api_key = var.amp_api_key
 }
@@ -33,7 +33,7 @@ locals {
 
 module "amp" {
   source      = "registry.coder.com/coder-labs/sourcegraph-amp/coder"
-  version     = "4.0.0"
+  version     = "4.0.1"
   agent_id    = coder_agent.main.id
   workdir     = local.amp_workdir
   amp_api_key = var.amp_api_key
@@ -59,7 +59,7 @@ resource "coder_app" "amp" {
 ```tf
 module "amp" {
   source      = "registry.coder.com/coder-labs/sourcegraph-amp/coder"
-  version     = "4.0.0"
+  version     = "4.0.1"
   agent_id    = coder_agent.main.id
   workdir     = "/home/coder/project"
   amp_api_key = var.amp_api_key
@@ -104,7 +104,7 @@ The module exposes the `scripts` output: an ordered list of `coder exp sync` nam
 ```tf
 module "amp" {
   source   = "registry.coder.com/coder-labs/sourcegraph-amp/coder"
-  version  = "4.0.0"
+  version  = "4.0.1"
   agent_id = coder_agent.main.id
 }
 
