@@ -13,7 +13,7 @@ Install and configure [Kiro CLI](https://kiro.dev/docs/cli/) in your workspace.
 ```tf
 module "kiro-cli" {
   source   = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version  = "2.0.0"
+  version  = "2.0.1"
   agent_id = coder_agent.main.id
 }
 ```
@@ -32,7 +32,7 @@ locals {
 
 module "kiro-cli" {
   source       = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version      = "2.0.0"
+  version      = "2.0.1"
   agent_id     = coder_agent.main.id
   workdir      = local.kiro_workdir
   auth_tarball = var.kiro_cli_auth_tarball
@@ -58,7 +58,7 @@ resource "coder_app" "kiro_cli" {
 ```tf
 module "kiro-cli" {
   source       = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version      = "2.0.0"
+  version      = "2.0.1"
   agent_id     = coder_agent.main.id
   workdir      = "/home/coder/project"
   auth_tarball = var.kiro_cli_auth_tarball
@@ -88,7 +88,7 @@ module "kiro-cli" {
 ```tf
 module "kiro-cli" {
   source           = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version          = "2.0.0"
+  version          = "2.0.1"
   agent_id         = coder_agent.main.id
   kiro_cli_version = "2.26.0"
   kiro_install_url = "https://artifacts.internal.corp/kiro-cli-releases"
@@ -104,7 +104,7 @@ The module exposes the `scripts` output: an ordered list of `coder exp sync` nam
 ```tf
 module "kiro-cli" {
   source   = "registry.coder.com/harleylrn/kiro-cli/coder"
-  version  = "2.0.0"
+  version  = "2.0.1"
   agent_id = coder_agent.main.id
 }
 
