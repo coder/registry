@@ -171,8 +171,8 @@ locals {
 }
 
 module "nix" {
-  # TODO: use registry.coder.com/coder-labs/nix/coder ~> 2.0 once released.
-  source = "git::https://github.com/coder/registry.git//registry/coder-labs/modules/nix?ref=phorcys/aws-nixos-dual-agent"
+  source  = "registry.coder.com/coder-labs/nix/coder"
+  version = "~> 2.0"
 
   config = {
     extra-substituters        = ["https://nix-community.cachix.org"]
