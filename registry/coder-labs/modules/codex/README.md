@@ -13,7 +13,7 @@ Install and configure the [Codex CLI](https://github.com/openai/codex) in your w
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.5.1"
+  version        = "5.5.2"
   agent_id       = coder_agent.main.id
   openai_api_key = var.openai_api_key
 }
@@ -34,9 +34,14 @@ administrator. Follow OpenAI's [OS-specific sandbox prerequisites](https://devel
 The module does not install system packages or change host security settings.
 
 After validating the CLI, the module logs a non-fatal warning on Linux when
-`bwrap` is missing, including with `install_codex = false` or `manage_config = false`.
-A successful `codex --version` or a `bwrap` executable on `PATH` does not verify
-that sandboxed commands can run under the workspace's kernel and security policy.
+`bwrap` is missing or cannot create a user namespace and read-only mount, including
+with `install_codex = false` or `manage_config = false`. The original probe error
+is included in the install log. This prerequisite check does not validate every
+Codex sandbox policy; verify the intended policy with `codex sandbox` in the workspace.
+
+In containers, the runtime's seccomp and AppArmor policies can block sandbox setup
+even when `bwrap` is installed. See the [Docker sandbox example](./examples/docker-sandbox/README.md)
+for diagnosis, explicit template/host configuration, and isolation checks.
 
 ## Existing user-managed configuration
 
@@ -48,7 +53,7 @@ API-key authentication when explicitly configured. Existing authentication is le
 ```tf
 module "codex" {
   source        = "registry.coder.com/coder-labs/codex/coder"
-  version       = "5.5.1"
+  version       = "5.5.2"
   agent_id      = coder_agent.main.id
   manage_config = false
 }
@@ -70,7 +75,7 @@ locals {
 
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.5.1"
+  version        = "5.5.2"
   agent_id       = coder_agent.main.id
   workdir        = local.codex_workdir
   openai_api_key = var.openai_api_key
@@ -101,7 +106,7 @@ resource "coder_app" "codex" {
 ```tf
 module "codex" {
   source            = "registry.coder.com/coder-labs/codex/coder"
-  version           = "5.5.1"
+  version           = "5.5.2"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   enable_ai_gateway = true
@@ -125,7 +130,7 @@ When `enable_ai_gateway = true`, the module configures Codex to use the `aigatew
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.5.1"
+  version        = "5.5.2"
   agent_id       = coder_agent.main.id
   workdir        = "/home/coder/project"
   openai_api_key = var.openai_api_key
@@ -171,7 +176,7 @@ The module exposes the `scripts` output: an ordered list of `coder exp sync` nam
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.5.1"
+  version        = "5.5.2"
   agent_id       = coder_agent.main.id
   openai_api_key = var.openai_api_key
 }

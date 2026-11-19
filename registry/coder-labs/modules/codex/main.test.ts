@@ -259,41 +259,75 @@ describe("codex", async () => {
   });
 
   test.each([
-    { os: "Linux", bwrap: false, manageConfig: true, warns: true },
-    { os: "Linux", bwrap: false, manageConfig: false, warns: true },
-    { os: "Linux", bwrap: true, manageConfig: true, warns: false },
-    { os: "Darwin", bwrap: false, manageConfig: true, warns: false },
-  ])("sandbox prerequisites %j", async ({ os, bwrap, manageConfig, warns }) => {
-    const { id, scripts } = await setup({
-      moduleVariables: { manage_config: String(manageConfig) },
-    });
-    const absent = await execContainer(id, ["bash", "-c", "command -v bwrap"]);
-    expect(absent.exitCode).toBe(1);
-    await writeExecutable({
-      containerId: id,
-      filePath: "/usr/local/bin/uname",
-      content: `#!/usr/bin/env bash\necho ${os}\n`,
-    });
-    if (bwrap) {
+    { os: "Linux", bwrap: false, manageConfig: true, blocked: false },
+    { os: "Linux", bwrap: false, manageConfig: false, blocked: false },
+    { os: "Linux", bwrap: true, manageConfig: true, blocked: false },
+    { os: "Linux", bwrap: true, manageConfig: true, blocked: true },
+    { os: "Linux", bwrap: true, manageConfig: false, blocked: true },
+    { os: "Darwin", bwrap: false, manageConfig: true, blocked: false },
+    { os: "Darwin", bwrap: true, manageConfig: true, blocked: true },
+  ])(
+    "sandbox prerequisites %j",
+    async ({ os, bwrap, manageConfig, blocked }) => {
+      const { id, scripts } = await setup({
+        moduleVariables: { manage_config: String(manageConfig) },
+      });
+      const absent = await execContainer(id, [
+        "bash",
+        "-c",
+        "command -v bwrap",
+      ]);
+      expect(absent.exitCode).toBe(1);
       await writeExecutable({
         containerId: id,
-        filePath: "/usr/local/bin/bwrap",
-        content: "#!/usr/bin/env bash\nexit 1\n",
+        filePath: "/usr/local/bin/uname",
+        content: `#!/usr/bin/env bash\necho ${os}\n`,
       });
-    }
-    await runScripts(id, scripts);
-    const log = await installLog(id);
-    expect(log).toContain("Validated existing Codex CLI");
-    expect(log.includes("Warning: Linux sandbox prerequisite")).toBe(warns);
-    if (warns) {
-      expect(log).toContain("bubblewrap (bwrap) was not found on PATH");
-      expect(log).toContain("workspace image or template");
-      expect(log).toContain("unprivileged user namespaces");
-      expect(log).toContain(
-        "https://developers.openai.com/codex/concepts/sandboxing#prerequisites",
+      if (bwrap) {
+        await writeExecutable({
+          containerId: id,
+          filePath: "/usr/local/bin/bwrap",
+          content: [
+            "#!/usr/bin/env bash",
+            'printf "%s\\n" "$@" > /tmp/bwrap-args',
+            ...(blocked
+              ? ['echo "bwrap: namespace probe denied" >&2', "exit 1"]
+              : ["exit 0"]),
+          ].join("\n"),
+        });
+      }
+      await runScripts(id, scripts);
+      const log = await installLog(id);
+      expect(log).toContain("Validated existing Codex CLI");
+      const missing = os === "Linux" && !bwrap;
+      expect(log.includes("Warning: Linux sandbox prerequisite")).toBe(missing);
+      expect(log.includes("bubblewrap is installed but cannot create")).toBe(
+        os === "Linux" && bwrap && blocked,
       );
-    }
-  });
+      if (missing) {
+        expect(log).toContain("bubblewrap (bwrap) was not found on PATH");
+        expect(log).toContain("workspace image or template");
+        expect(log).toContain("unprivileged user namespaces");
+        expect(log).toContain(
+          "https://developers.openai.com/codex/concepts/sandboxing#prerequisites",
+        );
+      }
+      if (os === "Linux" && bwrap) {
+        expect(await readFileContainer(id, "/tmp/bwrap-args")).toBe(
+          "--unshare-user\n--ro-bind\n/\n/\ntrue\n",
+        );
+        if (blocked) {
+          expect(log).toContain("bwrap: namespace probe denied");
+          expect(log).toContain("container seccomp/AppArmor policies");
+        }
+      } else {
+        expect(
+          (await execContainer(id, ["test", "!", "-e", "/tmp/bwrap-args"]))
+            .exitCode,
+        ).toBe(0);
+      }
+    },
+  );
 
   test("user-managed config remains unchanged across repeated installs", async () => {
     const { id, scripts } = await setup({
