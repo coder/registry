@@ -18,8 +18,6 @@ data "coder_workspace" "me" {}
 
 data "coder_workspace_owner" "me" {}
 
-data "coder_task" "me" {}
-
 variable "pre_install_script" {
   type        = string
   description = "Custom script to run before installing the agent used by AgentAPI."
