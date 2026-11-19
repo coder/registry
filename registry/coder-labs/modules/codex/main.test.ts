@@ -256,6 +256,43 @@ describe("codex", async () => {
     expect(installLog).toContain("Skipping Codex installation");
   });
 
+  test.each([
+    { os: "Linux", bwrap: false, manageConfig: true, warns: true },
+    { os: "Linux", bwrap: false, manageConfig: false, warns: true },
+    { os: "Linux", bwrap: true, manageConfig: true, warns: false },
+    { os: "Darwin", bwrap: false, manageConfig: true, warns: false },
+  ])("sandbox prerequisites %j", async ({ os, bwrap, manageConfig, warns }) => {
+    const { id, scripts } = await setup({
+      moduleVariables: { manage_config: String(manageConfig) },
+    });
+    const absent = await execContainer(id, ["bash", "-c", "command -v bwrap"]);
+    expect(absent.exitCode).toBe(1);
+    await writeExecutable({
+      containerId: id,
+      filePath: "/usr/local/bin/uname",
+      content: `#!/usr/bin/env bash\necho ${os}\n`,
+    });
+    if (bwrap) {
+      await writeExecutable({
+        containerId: id,
+        filePath: "/usr/local/bin/bwrap",
+        content: "#!/usr/bin/env bash\nexit 1\n",
+      });
+    }
+    await runScripts(id, scripts);
+    const log = await installLog(id);
+    expect(log).toContain("Validated existing Codex CLI");
+    expect(log.includes("Warning: Linux sandbox prerequisite")).toBe(warns);
+    if (warns) {
+      expect(log).toContain("bubblewrap (bwrap) was not found on PATH");
+      expect(log).toContain("workspace image or template");
+      expect(log).toContain("unprivileged user namespaces");
+      expect(log).toContain(
+        "https://developers.openai.com/codex/concepts/sandboxing#prerequisites",
+      );
+    }
+  });
+
   test("user-managed config remains unchanged across repeated installs", async () => {
     const { id, scripts } = await setup({
       moduleVariables: { manage_config: "false" },
@@ -299,6 +336,7 @@ describe("codex", async () => {
     const log = await installLog(id);
     const curlArgs = await readFileContainer(id, "/tmp/codex-curl-args");
     expect(log).toContain("Installed Codex CLI: codex test version");
+    expect(log).toContain("Warning: Linux sandbox prerequisite");
     const installerEnv = await readFileContainer(
       id,
       "/tmp/codex-installer-env",
