@@ -13,7 +13,7 @@ Install and configure [Aider](https://aider.chat) AI pair programming in your wo
 ```tf
 module "aider" {
   source      = "registry.coder.com/coder/aider/coder"
-  version     = "3.0.0"
+  version     = "3.0.1"
   agent_id    = coder_agent.main.id
   api_key     = var.gemini_api_key
   ai_provider = "google"
@@ -35,7 +35,7 @@ locals {
 
 module "aider" {
   source      = "registry.coder.com/coder/aider/coder"
-  version     = "3.0.0"
+  version     = "3.0.1"
   agent_id    = coder_agent.main.id
   workdir     = local.aider_workdir
   ai_provider = "anthropic"
@@ -63,7 +63,7 @@ resource "coder_app" "aider" {
 ```tf
 module "aider" {
   source              = "registry.coder.com/coder/aider/coder"
-  version             = "3.0.0"
+  version             = "3.0.1"
   agent_id            = coder_agent.main.id
   ai_provider         = "custom"
   custom_env_var_name = "DEEPSEEK_API_KEY"
@@ -79,7 +79,7 @@ module "aider" {
 ```tf
 module "aider" {
   source   = "registry.coder.com/coder/aider/coder"
-  version  = "3.0.0"
+  version  = "3.0.1"
   agent_id = coder_agent.main.id
   model    = "gemini"
   api_key  = var.gemini_api_key
@@ -101,7 +101,7 @@ The module exposes the `scripts` output: an ordered list of `coder exp sync` nam
 ```tf
 module "aider" {
   source   = "registry.coder.com/coder/aider/coder"
-  version  = "3.0.0"
+  version  = "3.0.1"
   agent_id = coder_agent.main.id
   model    = "gemini"
 }

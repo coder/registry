@@ -488,7 +488,7 @@ JSONCEOF`,
       script.script,
     ]);
 
-    expect(result.exitCode).toBe(0);
+    expect(result.exitCode, result.stderr + result.stdout).toBe(0);
     expect(result.stdout).toContain("INSTALLED:ms-python.python");
     expect(result.stdout).toContain("INSTALLED:dbaeumer.vscode-eslint");
   });
