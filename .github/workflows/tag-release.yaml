@@ -5,6 +5,7 @@
 # only)"), and its key is only available in the release-tags environment, which needs a registry
 # maintainer other than the one who dispatched this run to approve it. The plan job lists the tags
 # in the run summary for the approver; the tag job creates exactly those, from the same commit.
+# The deploy job then deploys the registry once for the whole run.
 name: Tag releases
 
 on:
@@ -100,3 +101,13 @@ jobs:
           git config user.email "${user_id}+${APP_SLUG}[bot]@users.noreply.github.com"
           gh auth setup-git
           ./scripts/tag_release.sh --auto-approve
+
+  deploy:
+    name: Deploy registry
+    needs: tag
+    # Also deploy after a partial push failure, so the tags that did land are published.
+    if: ${{ !cancelled() && (needs.tag.result == 'success' || needs.tag.result == 'failure') }}
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/deploy-registry.yaml
