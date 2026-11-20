@@ -88,15 +88,21 @@ run "cli_rejects_shared_origin" {
   expect_failures = [coder_app.vscode-web]
 }
 
-run "cli_rejects_disable_trust" {
+run "cli_accepts_server_options_together" {
   command = plan
   variables {
     agent_id       = "foo"
     accept_license = true
     use_cli        = true
     disable_trust  = true
+    extensions_dir = "/home/coder/custom extensions"
+    platform       = "linux"
   }
-  expect_failures = [coder_app.vscode-web]
+
+  assert {
+    condition     = length(module.cli) == 1 && length(coder_script.vscode-web) == 0
+    error_message = "All three server options must work with the CLI launcher."
+  }
 }
 
 run "cli_rejects_invalid_commit" {
@@ -122,24 +128,13 @@ run "cli_rejects_offline_recommendations" {
   expect_failures = [coder_app.vscode-web]
 }
 
-run "cli_rejects_extensions_dir" {
+run "cli_rejects_windows_server" {
   command = plan
   variables {
     agent_id       = "foo"
     accept_license = true
     use_cli        = true
-    extensions_dir = "/custom"
-  }
-  expect_failures = [coder_app.vscode-web]
-}
-
-run "cli_rejects_platform" {
-  command = plan
-  variables {
-    agent_id       = "foo"
-    accept_license = true
-    use_cli        = true
-    platform       = "linux"
+    platform       = "win32"
   }
   expect_failures = [coder_app.vscode-web]
 }

@@ -230,8 +230,8 @@ resource "coder_app" "vscode-web" {
       error_message = "CLI mode requires subdomain=true to isolate browser secret storage between workspaces."
     }
     precondition {
-      condition     = !var.use_cli || (!var.disable_trust && var.extensions_dir == "" && var.platform == "")
-      error_message = "CLI mode does not support disable_trust, extensions_dir, or platform overrides."
+      condition     = !var.use_cli || var.platform != "win32"
+      error_message = "CLI mode requires a Linux or macOS workspace and a compatible Unix server archive."
     }
     precondition {
       condition     = !var.offline || (length(var.extensions) == 0 && (!var.use_cli || !var.auto_install_extensions))

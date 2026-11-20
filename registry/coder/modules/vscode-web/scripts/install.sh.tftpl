@@ -26,19 +26,27 @@ case "$ARCH" in
 esac
 case "$(uname -s)" in
   Linux)
+    HOST_PLATFORM=linux
+    CLI_PLATFORM="alpine-$ARCH"
     if [ -f /etc/alpine-release ]; then
       echo "Linux CLI mode requires a glibc-based workspace (not Alpine)." >&2
       exit 1
     fi
-    CLI_PLATFORM="alpine-$ARCH"
-    SERVER_PLATFORM="linux-$ARCH"
     ;;
-  Darwin)
-    CLI_PLATFORM="darwin-$ARCH"
-    SERVER_PLATFORM=darwin
-    if [ "$ARCH" = arm64 ]; then SERVER_PLATFORM=darwin-arm64; fi
-    ;;
+  Darwin) HOST_PLATFORM=darwin; CLI_PLATFORM="darwin-$ARCH" ;;
   *) echo "CLI mode requires Linux or macOS." >&2; exit 1 ;;
+esac
+
+VSCODE_WEB_PLATFORM='${PLATFORM}'
+export VSCODE_WEB_PLATFORM="$${VSCODE_WEB_PLATFORM:-$HOST_PLATFORM}"
+case "$HOST_PLATFORM:$VSCODE_WEB_PLATFORM" in
+  linux:linux|linux:alpine|darwin:darwin) ;;
+  *) echo "Cannot run a $VSCODE_WEB_PLATFORM server on $HOST_PLATFORM." >&2; exit 1 ;;
+esac
+SERVER_PLATFORM="$VSCODE_WEB_PLATFORM-$ARCH"
+case "$SERVER_PLATFORM" in
+  darwin-x64) SERVER_PLATFORM=darwin ;;
+  alpine-x64) SERVER_PLATFORM=linux-alpine ;;
 esac
 
 if [ -z "$COMMIT" ]; then
@@ -55,7 +63,21 @@ fi
 
 CLI="$INSTALL_DIR/bin/code-$COMMIT"
 export VSCODE_WEB_COMMIT="$COMMIT"
-export VSCODE_WEB_SERVER_DIR="$CLI_DATA_DIR/serve-web/$COMMIT"
+CACHE_DIR="$CLI_DATA_DIR/serve-web/$COMMIT"
+export VSCODE_WEB_SERVER_DIR="$CACHE_DIR/$SERVER_PLATFORM"
+
+# Adopt a stock native archive already present in the CLI's commit cache.
+# The sibling path also lets an interrupted migration resume on the next start.
+native_archive="$CLI_DATA_DIR/.native-$COMMIT"
+if [ -x "$CACHE_DIR/bin/code-server" ] && [ ! -L "$CACHE_DIR/bin/code-server" ]; then
+  mv "$CACHE_DIR" "$native_archive"
+fi
+if [ -d "$native_archive" ]; then
+  mkdir -p "$CACHE_DIR"
+  native_target="$HOST_PLATFORM-$ARCH"
+  if [ "$native_target" = darwin-x64 ]; then native_target=darwin; fi
+  mv "$native_archive" "$CACHE_DIR/$native_target"
+fi
 if [ '${OFFLINE}' = true ]; then
   if [ ! -x "$CLI" ] || [ ! -x "$VSCODE_WEB_SERVER_DIR/bin/code-server" ]; then
     echo "Offline CLI mode requires both the CLI and server for $COMMIT." >&2
@@ -74,8 +96,29 @@ elif [ ! -x "$CLI" ]; then
   mv "$STAGING/code" "$CLI"
 fi
 
-# Reuse the module's settings, server installation and extension handling.
+# Publish a complete archive before switching the CLI entry point.
+mkdir -p "$CACHE_DIR/bin"
+server_dir="$VSCODE_WEB_SERVER_DIR"
+if [ ! -x "$server_dir/bin/code-server" ]; then
+  # Only the module-owned extracted archive is replaceable. Settings and
+  # extensions are stored separately.
+  if [ -d "$server_dir" ]; then rm -rf "$server_dir"; fi
+  VSCODE_WEB_SERVER_DIR=$(mktemp -d "$CACHE_DIR/.install-XXXXXX")
+fi
+
 printf '%s' '${PREPARE_SERVER_B64}' | base64 -d > "$MODULE_DIR/scripts/prepare-server.sh"
-bash -eo pipefail "$MODULE_DIR/scripts/prepare-server.sh"
-test -x "$VSCODE_WEB_SERVER_DIR/bin/code-server"
+if ! bash -eo pipefail "$MODULE_DIR/scripts/prepare-server.sh" || ! "$VSCODE_WEB_SERVER_DIR/bin/code-server" --version; then
+  if [ "$VSCODE_WEB_SERVER_DIR" != "$server_dir" ]; then rm -rf "$VSCODE_WEB_SERVER_DIR"; fi
+  echo "Failed to prepare VS Code server $COMMIT for $SERVER_PLATFORM." >&2
+  exit 1
+fi
+if [ "$VSCODE_WEB_SERVER_DIR" != "$server_dir" ]; then mv "$VSCODE_WEB_SERVER_DIR" "$server_dir"; fi
+
+# The CLI supplies its socket and connection arguments to this entry point.
+launcher="$server_dir/bin/coder-serve-web"
+launcher_tmp=$(mktemp "$server_dir/bin/.launcher-XXXXXX")
+printf '%s' '${LAUNCHER_B64}' | base64 -d > "$launcher_tmp"
+chmod +x "$launcher_tmp"
+mv -f "$launcher_tmp" "$launcher"
+ln -sfn "$launcher" "$CACHE_DIR/bin/code-server"
 printf '%s\n' "$COMMIT" > "$MODULE_DIR/commit"

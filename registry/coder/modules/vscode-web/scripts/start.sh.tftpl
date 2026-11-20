@@ -9,6 +9,10 @@ LOG_PATH="$${LOG_PATH:-$MODULE_DIR/logs/serve-web.log}"
 COMMIT=$(cat "$MODULE_DIR/commit")
 CLI="$INSTALL_DIR/bin/code-$COMMIT"
 
+export VSCODE_WEB_DISABLE_TRUST='${DISABLE_TRUST}'
+VSCODE_WEB_EXTENSIONS_DIR=$(printf '%s' '${EXTENSIONS_DIR_B64}' | base64 -d)
+export VSCODE_WEB_EXTENSIONS_DIR
+
 args=(serve-web --host 127.0.0.1 --port '${PORT}'
   --accept-server-license-terms --without-connection-token
   --cli-data-dir "$MODULE_DIR/cli" --commit-id "$COMMIT"

@@ -48,6 +48,7 @@ EOF
 cat > '${installPrefix}/bin/code-${commit}' <<'EOF'
 #!/usr/bin/env bash
 printf 'CLI_ARG:%s\n' "$@"
+'${root}/cli/serve-web/${commit}/bin/code-server' --socket-path /tmp/test.sock || exit 1
 exec sleep infinity
 EOF
 cat > '${root}/cli/serve-web/${commit}/bin/code-server' <<'EOF'
@@ -62,7 +63,7 @@ chmod +x /usr/local/bin/coder /usr/local/bin/curl '${installPrefix}/bin/code-${c
 }
 
 describe("vscode-web CLI", () => {
-  it("reuses a pinned cache, installs extensions and preserves quoted paths", async () => {
+  it("uses all three options for a pinned server and preserves quoted paths", async () => {
     const prefix = "/root/custom cli";
     const state = await runTerraformApply(import.meta.dir, {
       agent_id: "foo",
@@ -72,6 +73,9 @@ describe("vscode-web CLI", () => {
       use_cached: true,
       commit_id: commit,
       install_prefix: prefix,
+      disable_trust: true,
+      extensions_dir: "/root/it's custom extensions",
+      platform: "linux",
       telemetry_level: "off",
       log_path: "/root/logs/it's vscode.log",
       extensions: '["publisher.extension"]',
@@ -87,6 +91,9 @@ describe("vscode-web CLI", () => {
     expect(install.exitCode, install.stderr + install.stdout).toBe(0);
     const extensionArgs = await execContainer(id, ["cat", "/root/server-args"]);
     expect(extensionArgs.stdout).toContain("SERVER_ARG:publisher.extension");
+    expect(extensionArgs.stdout.split("\n")).toContain(
+      "SERVER_ARG:--extensions-dir=/root/it's custom extensions",
+    );
     const settings = await execContainer(id, [
       "cat",
       "/root/.vscode-server/data/Machine/settings.json",
@@ -106,6 +113,13 @@ describe("vscode-web CLI", () => {
     expect(log.stdout).toContain(`CLI_ARG:${root}/cli`);
     expect(log.stdout).toContain("CLI_ARG:--disable-telemetry");
     expect(log.stdout).toContain(`CLI_ARG:${commit}`);
+    const args = await execContainer(id, ["cat", "/root/server-args"]);
+    expect(args.stdout.trim().split("\n").slice(-4)).toEqual([
+      "SERVER_ARG:--extensions-dir=/root/it's custom extensions",
+      "SERVER_ARG:--disable-workspace-trust",
+      "SERVER_ARG:--socket-path",
+      "SERVER_ARG:/tmp/test.sock",
+    ]);
   });
 
   it("starts offline from the recorded version without a download", async () => {
@@ -117,7 +131,7 @@ describe("vscode-web CLI", () => {
       offline: true,
     });
     const id = await prepareContainer();
-    for (const name of ["install_script", "start_script"]) {
+    for (const name of ["install_script", "install_script", "start_script"]) {
       const result = await execContainer(id, [
         "bash",
         "-c",
@@ -128,6 +142,10 @@ describe("vscode-web CLI", () => {
         "unexpected download",
       );
     }
+    const args = await execContainer(id, ["cat", "/root/server-args"]);
+    expect(args.stdout).toContain("SERVER_ARG:--socket-path");
+    expect(args.stdout).not.toContain("--extensions-dir");
+    expect(args.stdout).not.toContain("--disable-workspace-trust");
   });
 
   it("fails offline when the server cache is incomplete", async () => {

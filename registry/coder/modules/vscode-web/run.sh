@@ -128,6 +128,8 @@ if [ "$SKIP_INSTALL" != true ]; then
   UPDATE_PLATFORM="server-$DETECTED_PLATFORM-$ARCH-web"
   if [ "$DETECTED_PLATFORM" = darwin ] && [ "$ARCH" = x64 ]; then
     UPDATE_PLATFORM=server-darwin-web
+  elif [ "$DETECTED_PLATFORM" = alpine ] && [ "$ARCH" = x64 ]; then
+    UPDATE_PLATFORM=server-linux-alpine-web
   fi
 
   # Check if a specific VS Code Web commit ID was provided
@@ -149,7 +151,7 @@ if [ "$SKIP_INSTALL" != true ]; then
     fi
     rm -f "$archive"
   else
-    output=$(curl -fsSL "https://vscode.download.prss.microsoft.com/dbazure/download/stable/$HASH/vscode-server-$DETECTED_PLATFORM-$ARCH-web.tar.gz" | tar -xz -C "${INSTALL_PREFIX}" --strip-components 1)
+    output=$(curl -fsSL "https://vscode.download.prss.microsoft.com/dbazure/download/stable/$HASH/vscode-$UPDATE_PLATFORM.tar.gz" | tar -xz -C "${INSTALL_PREFIX}" --strip-components 1)
     if [ $? -ne 0 ]; then
       echo "Failed to install Microsoft Visual Studio Code Server: $output"
       exit 1

@@ -1,5 +1,5 @@
 variable "use_cli" {
-  description = "Use the official VS Code CLI on glibc-based Linux or macOS (x64/arm64) to persist encrypted extension secrets in the browser. Requires an isolated subdomain and does not support disable_trust, extensions_dir, or a platform override."
+  description = "Use the official VS Code CLI on glibc-based Linux or macOS (x64/arm64) to persist encrypted extension secrets in the browser. Requires an isolated application subdomain."
   type        = bool
   default     = false
 }
@@ -14,21 +14,23 @@ locals {
   cli_install_script = templatefile("${path.module}/scripts/install.sh.tftpl", {
     INSTALL_PREFIX_B64 = base64encode(var.install_prefix == "/tmp/vscode-web" ? "" : var.install_prefix)
     COMMIT_ID          = var.commit_id
+    PLATFORM           = var.platform
     OFFLINE            = tostring(var.offline)
     USE_CACHED         = tostring(var.use_cached)
+    LAUNCHER_B64       = filebase64("${path.module}/scripts/code-server.sh")
     PREPARE_SERVER_B64 = base64encode(templatefile("${path.module}/run.sh", {
       RUN_SERVER              = false
       PORT                    = var.port
       LOG_PATH                = ""
       INSTALL_PREFIX          = "$VSCODE_WEB_SERVER_DIR"
       COMMIT_ID               = "$VSCODE_WEB_COMMIT"
-      PLATFORM                = ""
+      PLATFORM                = "$VSCODE_WEB_PLATFORM"
       EXTENSIONS              = "$(printf '%s' '${base64encode(join(",", var.extensions))}' | base64 -d)"
-      EXTENSIONS_DIR          = ""
+      EXTENSIONS_DIR          = "$(printf '%s' '${base64encode(var.extensions_dir)}' | base64 -d)"
       TELEMETRY_LEVEL         = var.telemetry_level
       SETTINGS_B64            = base64encode(jsonencode(merge(var.settings, { "telemetry.telemetryLevel" = var.telemetry_level })))
       OFFLINE                 = var.offline
-      USE_CACHED              = var.use_cached
+      USE_CACHED              = true
       DISABLE_TRUST           = false
       FOLDER                  = "$(printf '%s' '${base64encode(var.folder)}' | base64 -d)"
       WORKSPACE               = "$(printf '%s' '${base64encode(var.workspace)}' | base64 -d)"
@@ -39,6 +41,8 @@ locals {
   cli_start_script = templatefile("${path.module}/scripts/start.sh.tftpl", {
     INSTALL_PREFIX_B64 = base64encode(var.install_prefix == "/tmp/vscode-web" ? "" : var.install_prefix)
     PORT               = var.port
+    DISABLE_TRUST      = tostring(var.disable_trust)
+    EXTENSIONS_DIR_B64 = base64encode(var.extensions_dir)
     TELEMETRY_LEVEL    = var.telemetry_level
     LOG_PATH_B64       = base64encode(var.log_path == "/tmp/vscode-web.log" ? "" : var.log_path)
   })

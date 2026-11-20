@@ -41,11 +41,11 @@ module "vscode-web" {
 }
 ```
 
-Use a Coder deployment with wildcard application URLs and HTTPS. Each workspace needs its own application subdomain because browser secrets are scoped to an origin. The CLI does not forward `disable_trust`, `extensions_dir`, or `platform` overrides; enabling CLI mode with any of these options fails validation instead of silently ignoring them. Workspace trust remains enabled.
+Use a Coder deployment with wildcard application URLs and HTTPS. Each workspace needs its own application subdomain because browser secrets are scoped to an origin. The module downloads the server archive for the selected `platform` and prepares a launcher for that version. The launcher passes the custom extensions directory and workspace trust option to the server started by the CLI. These options can be used together. Choose an archive that runs on your workspace OS and architecture.
 
 The server's encryption key, version marker, and server cache live under `$HOME/.coder-modules/coder/vscode-web/`. Persist that directory along with the workspace home. Secrets also depend on the browser's site data: deleting that data, losing the server key, or changing the app origin requires signing in again. Existing in-memory sessions are not migrated when switching launch modes.
 
-CLI mode installs its executable under the module directory by default; a custom `install_prefix` changes the executable location. Installation and startup diagnostics are in `logs/install.log` and `logs/start.log` under the module directory. The running server writes to `logs/serve-web.log`, or to a custom `log_path` when supplied. Settings and extensions continue to use `$HOME/.vscode-server`.
+CLI mode installs its executable under the module directory by default; a custom `install_prefix` changes the executable location. Installation and startup diagnostics are in `logs/install.log` and `logs/start.log` under the module directory. The running server writes to `logs/serve-web.log`, or to a custom `log_path` when supplied. Machine settings stay under `$HOME/.vscode-server`. Set `extensions_dir` to use the same custom directory for extension installation and startup.
 
 With `use_cached = true`, the recorded version is reused unless `commit_id` selects another version. Offline mode requires both the matching CLI and server to have been installed previously, and cannot install extensions. An explicit commit ID pins both downloads. The server is prepared in the CLI's commit-based cache so existing settings and extension installation can be reused without introducing a second installation pipeline.
 
