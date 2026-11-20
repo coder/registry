@@ -17,7 +17,7 @@ via `herdr plugin install <spec> --yes`.
 module "herdr" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/gojnimer6553/herdr/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
 }
 ```
@@ -80,7 +80,7 @@ below.
 module "herdr" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/gojnimer6553/herdr/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
   plugins  = ["0cv/herdr-mobile-relay"]
   app_port = 8375
@@ -100,7 +100,7 @@ skipping the wizard and its `cloudflared` requirement:
 module "herdr" {
   count             = data.coder_workspace.me.start_count
   source            = "registry.coder.com/gojnimer6553/herdr/coder"
-  version           = "1.0.0"
+  version           = "1.0.1"
   agent_id          = coder_agent.main.id
   plugins           = ["0cv/herdr-mobile-relay"]
   app_port          = 8375
@@ -141,7 +141,7 @@ session gating.
 module "herdr" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/gojnimer6553/herdr/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 }
@@ -153,7 +153,7 @@ module "herdr" {
 module "herdr" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/gojnimer6553/herdr/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
   plugins = [
     "0cv/herdr-mobile-relay",
@@ -168,7 +168,7 @@ module "herdr" {
 module "herdr" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/gojnimer6553/herdr/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
   install  = false
 }
