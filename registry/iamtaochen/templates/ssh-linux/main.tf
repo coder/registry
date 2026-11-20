@@ -304,14 +304,14 @@ module "coder-login" {
 module "cursor" {
   count    = contains(local.apps_selected, "Cursor") ? data.coder_workspace.me.start_count : 0
   source   = "registry.coder.com/coder/cursor/coder"
-  version  = "1.4.0"
+  version  = "1.4.2"
   agent_id = coder_agent.main.id
 }
 
 module "vscode-web" {
   count          = contains(local.apps_selected, "VS Code Web") ? data.coder_workspace.me.start_count : 0
   source         = "registry.coder.com/coder/vscode-web/coder"
-  version        = "1.4.3"
+  version        = "1.6.2"
   agent_id       = coder_agent.main.id
   folder         = local.home_dir
   port           = random_integer.vs_code_port.result
