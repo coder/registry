@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SOCKET_PATH="${ARG_SOCKET_PATH}"
+LOG_FILE="${ARG_LOG_FILE}"
+
+mkdir -p "$(dirname "$SOCKET_PATH")" "$(dirname "$LOG_FILE")"
+
+if [ -S "$SOCKET_PATH" ] && curl -fsS --unix-socket "$SOCKET_PATH" -o /dev/null http://d/_ping 2>/dev/null; then
+  echo "Podman API already serving on $SOCKET_PATH."
+  exit 0
+fi
+rm -f "$SOCKET_PATH"
+
+# Detach fully so the service outlives this script and doesn't hold its output pipe.
+nohup podman system service --time=0 "unix://$SOCKET_PATH" < /dev/null >> "$LOG_FILE" 2>&1 &
+
+for _ in $(seq 1 50); do
+  if [ -S "$SOCKET_PATH" ]; then
+    echo "Podman API serving on $SOCKET_PATH (DOCKER_HOST=unix://$SOCKET_PATH)."
+    exit 0
+  fi
+  sleep 0.2
+done
+
+echo "ERROR: Podman API socket did not appear at $SOCKET_PATH. Last log lines:" >&2
+tail -n 20 "$LOG_FILE" >&2 || true
+exit 1
