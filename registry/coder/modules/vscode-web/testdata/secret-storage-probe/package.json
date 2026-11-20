@@ -1,0 +1,45 @@
+{
+  "name": "secret-storage-probe",
+  "displayName": "Registry Secret Storage Probe",
+  "publisher": "registry-test",
+  "version": "1.0.0",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "main": "./extension.js",
+  "extensionKind": [
+    "workspace"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "registryProbe.store",
+        "title": "Registry Probe: Store Secret"
+      },
+      {
+        "command": "registryProbe.read",
+        "title": "Registry Probe: Read Secret"
+      },
+      {
+        "command": "registryProbe.delete",
+        "title": "Registry Probe: Delete Secret"
+      },
+      {
+        "command": "registryProbe.github",
+        "title": "Registry Probe: Sign in to GitHub"
+      },
+      {
+        "command": "registryProbe.microsoft",
+        "title": "Registry Probe: Sign in to Microsoft"
+      }
+    ]
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    }
+  }
+}

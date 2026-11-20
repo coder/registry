@@ -10,6 +10,7 @@ command_exists() {
 }
 
 ARG_INSTALL='${ARG_INSTALL}'
+ARG_MANAGE_CONFIG='${ARG_MANAGE_CONFIG}'
 ARG_CODEX_VERSION='${ARG_CODEX_VERSION}'
 ARG_WORKDIR=$(echo -n '${ARG_WORKDIR}' | base64 -d)
 ARG_BASE_CONFIG_TOML=$(echo -n '${ARG_BASE_CONFIG_TOML}' | base64 -d)
@@ -130,6 +131,10 @@ EOF
 }
 
 function populate_config_toml() {
+  if [ "$${ARG_MANAGE_CONFIG}" != "true" ]; then
+    echo "Skipping Codex configuration; config.toml remains user-managed."
+    return
+  fi
   local config_path="$${CODEX_HOME:-$HOME/.codex}/config.toml"
   mkdir -p "$(dirname "$${config_path}")"
 
@@ -254,7 +259,16 @@ function authenticate_codex() {
   echo "Codex authenticated successfully."
 }
 
+function check_sandbox_prerequisites() {
+  if [ "$(uname -s)" = "Linux" ] && ! command_exists bwrap; then
+    echo "Warning: Linux sandbox prerequisite bubblewrap (bwrap) was not found on PATH." >&2
+    echo "Install the distribution's bubblewrap package in the workspace image or template. Codex's bundled fallback requires unprivileged user namespaces." >&2
+    echo "See https://developers.openai.com/codex/concepts/sandboxing#prerequisites for OS-specific setup, including Ubuntu 24.04 AppArmor profiles." >&2
+  fi
+}
+
 install_codex
+check_sandbox_prerequisites
 populate_config_toml
 setup_workdir
 authenticate_codex

@@ -6,9 +6,19 @@ set -euo pipefail
 #   ALL_CHANGED_FILES - all files changed in the PR (for logging)
 #   SHARED_CHANGED - boolean indicating if shared infrastructure changed
 #   MODULE_CHANGED_FILES - only files in registry/**/modules/** (for processing)
+#   SHARD_INDEX / SHARD_COUNT - optional, 1-based shard of the test files (default 1/1)
 # Runs all tests if shared infrastructure changes
 #
 # This script only runs tests for changed modules. Documentation and template changes are ignored.
+
+TEST_TIMEOUT_MS="${TEST_TIMEOUT_MS:-30000}"
+SHARD_INDEX="${SHARD_INDEX:-1}"
+SHARD_COUNT="${SHARD_COUNT:-1}"
+
+find_test_files() {
+  find "$@" \( -name node_modules -o -name .git -o -name .terraform \) -prune -o \
+    -type f \( -name "*.test.ts" -o -name "*_test.ts" -o -name "*.spec.ts" -o -name "*_spec.ts" \) -print
+}
 
 echo "==> Detecting changed files..."
 
@@ -21,43 +31,50 @@ fi
 if [[ "${SHARED_CHANGED:-false}" == "true" ]]; then
   echo "==> Shared infrastructure changed"
   echo "==> Running all tests for safety"
-  exec bun test
-fi
-
-if [[ -z "${MODULE_CHANGED_FILES:-}" ]]; then
+  mapfile -t test_files < <(find_test_files . | sed 's#^\./##' | sort)
+elif [[ -z "${MODULE_CHANGED_FILES:-}" ]]; then
   echo "✓ No module files changed, skipping tests"
   exit 0
+else
+  CHANGED_FILES=$(echo "$MODULE_CHANGED_FILES" | tr ' ' '\n')
+
+  MODULE_DIRS=()
+  while IFS= read -r file; do
+    if [[ "$file" =~ \.(md|png|jpg|jpeg|svg)$ ]]; then
+      continue
+    fi
+
+    if [[ "$file" =~ ^registry/([^/]+)/modules/([^/]+)/ ]]; then
+      module_dir="registry/${BASH_REMATCH[1]}/modules/${BASH_REMATCH[2]}"
+
+      if [[ -d "$module_dir" ]] && [[ ! " ${MODULE_DIRS[*]} " =~ " $module_dir " ]]; then
+        MODULE_DIRS+=("$module_dir")
+      fi
+    fi
+  done <<< "$CHANGED_FILES"
+
+  test_files=()
+  if [[ ${#MODULE_DIRS[@]} -gt 0 ]]; then
+    mapfile -t test_files < <(find_test_files "${MODULE_DIRS[@]}" | sort)
+  fi
 fi
 
-CHANGED_FILES=$(echo "$MODULE_CHANGED_FILES" | tr ' ' '\n')
-
-MODULE_DIRS=()
-while IFS= read -r file; do
-  if [[ "$file" =~ \.(md|png|jpg|jpeg|svg)$ ]]; then
-    continue
+shard_files=()
+for i in "${!test_files[@]}"; do
+  if (((i % SHARD_COUNT) + 1 == SHARD_INDEX)); then
+    shard_files+=("./${test_files[$i]}")
   fi
+done
 
-  if [[ "$file" =~ ^registry/([^/]+)/modules/([^/]+)/ ]]; then
-    namespace="${BASH_REMATCH[1]}"
-    module="${BASH_REMATCH[2]}"
-    module_dir="registry/${namespace}/modules/${module}"
-
-    if [[ -f "$module_dir/main.test.ts" ]] && [[ ! " ${MODULE_DIRS[*]} " =~ " $module_dir " ]]; then
-      MODULE_DIRS+=("$module_dir")
-    fi
-  fi
-done <<< "$CHANGED_FILES"
-
-if [[ ${#MODULE_DIRS[@]} -eq 0 ]]; then
+if [[ ${#shard_files[@]} -eq 0 ]]; then
   echo "✓ No TypeScript tests to run"
   echo "  (documentation, templates, namespace files, or modules without tests)"
   exit 0
 fi
 
-echo "==> Running TypeScript tests for ${#MODULE_DIRS[@]} changed module(s):"
-for dir in "${MODULE_DIRS[@]}"; do
-  echo "  - $dir"
-done
+echo "==> Running ${#shard_files[@]} TypeScript test file(s) (shard ${SHARD_INDEX}/${SHARD_COUNT}):"
+printf '  - %s\n' "${shard_files[@]}"
 echo ""
 
-exec bun test "${MODULE_DIRS[@]}"
+# Without ./ bun treats a path as a substring filter (foo would also run foo-*).
+exec bun test --timeout "$TEST_TIMEOUT_MS" "${shard_files[@]}"

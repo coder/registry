@@ -250,7 +250,7 @@ describe("agent-relay-cursor", () => {
     // No AGENT_RELAY_CURSOR_TOKEN: a workspace a human created by hand.
     const { start } = await runScripts(id, scripts, []);
     expect(start.exitCode).toBe(0);
-    expect(start.stdout).toContain("No worker token set");
+    expect(start.stdout).toContain("No worker token in this build");
     expect(await readState(id)).toBe("idle");
   });
 
@@ -265,6 +265,19 @@ describe("agent-relay-cursor", () => {
     const { start } = await runScripts(id, scripts, []);
     expect(start.exitCode).toBe(0);
     expect(await readState(id)).toBe("idle");
+  });
+
+  it("sets no coder_env for the worker token's variable", async () => {
+    // The agent injects AGENT_RELAY_CURSOR_TOKEN from the workspace
+    // secret. A coder_env of that name, as 0.x had, would put the token
+    // back in Terraform state.
+    const state = await runTerraformApply(import.meta.dir, { agent_id: "foo" });
+    const envNames = state.resources
+      .filter((resource) => resource.type === "coder_env")
+      .flatMap((resource) =>
+        resource.instances.map((instance) => instance.attributes.name),
+      );
+    expect(envNames).not.toContain("AGENT_RELAY_CURSOR_TOKEN");
   });
 
   it("removes a stale token before idling without cleanup or a credential", async () => {

@@ -16,7 +16,7 @@ parameters the relay stamps on each build and runs the Cursor CLI worker.
 ```tf
 module "cursor_worker" {
   source   = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version  = "0.8.1"
+  version  = "1.0.2"
   agent_id = coder_agent.main.id
 
   # Downloads the Cursor CLI at start when it is not in the image. Bake
@@ -61,11 +61,24 @@ created.
 
 ## Requirements
 
+- Coder 2.39.0 or newer and Agent Relay 0.14.0 or newer. On those versions
+  the relay delivers the worker token as an ephemeral workspace secret, which
+  the agent injects as `AGENT_RELAY_CURSOR_TOKEN`; it is never a build
+  parameter. A relay that still sends it as the `agent_relay_credential`
+  parameter refuses to serve a template on this version with
+  `missing parameter "agent_relay_credential"`, so on older versions pin
+  `0.8.0`, the last release that declares the parameter. Upgrade Coder, then
+  Agent Relay, then move templates to `1.0.0` one at a time; a `0.8.0`
+  template keeps working on the new versions, except that its `dispatched`
+  output reads `false` on relay builds. To roll a relay or Coder back, pin
+  templates back to `0.8.0` first.
 - The Cursor CLI (`agent`) must be in the workspace. `install_cli` (default
   `true`) downloads it at start only when it is not already on PATH; bake it
   into the image for the fastest start. `cli_binary` overrides the path.
 - Repo-scoped pools: the template must clone `agent_relay_cursor_repo_url` and
-  provide SCM credentials before this module's script runs.
+  provide SCM credentials before this module's script runs. Order this
+  module's scripts after the clone; see
+  [Start the worker after your setup](#start-the-worker-after-your-setup).
 - `computer_use = true` needs the computer-use packages in the image.
   `share_desktop = true` (requires `computer_use`) lets people watch or take
   control of the agent's desktop from the Desktop tab in Cursor. It needs
@@ -76,18 +89,81 @@ created.
 - Builds must finish inside the pool's `dispatch_deadline` (default 10m, max
   15m): pre-pulled images, no persistent volumes.
 
+## Start the worker after your setup
+
+The start step runs as one of the agent's start scripts. Without an
+ordering rule, every start script runs at once, so the worker can take
+a session while your template is still cloning a repository or installing
+tools. The module cannot wait for the agent to be `ready`: its own start
+script is one of the scripts the agent waits on.
+
+Order the module after your setup in the template, with a
+`coder_script_order` rule. The module cannot declare this rule for you,
+because a rule can only select scripts in its own module, so it lives
+beside the module call:
+
+```tf
+resource "coder_script" "setup" {
+  agent_id     = coder_agent.main.id
+  display_name = "Workspace setup"
+  run_on_start = true
+  timeout      = 300
+  script       = file("${path.module}/setup.sh")
+}
+
+data "coder_script_order" "relay_worker" {
+  rule {
+    phase = "start"
+    run   = ["module.cursor_worker"]
+    after = ["coder_script.setup"]
+  }
+}
+```
+
+- Script ordering needs Coder 2.39.0 or newer on the control plane, the
+  provisioners and the workspace agents, and the Coder provider 2.20.0 or
+  newer. Older Coder ignores the rule without an error and the worker
+  starts right away.
+- `coder_agent.startup_script` cannot be ordered. Put setup the worker
+  depends on in `coder_script` resources or modules, including a step that
+  installs the CLI (set `install_cli = false` and order the module after it).
+- With the default `requires = "success"`, a setup script that fails or
+  times out skips this module and the worker never starts. Agent Relay newer than 0.15.0
+  fails the session about a minute after the agent reports the failure;
+  0.15.0 and older wait out the startup grace and then report that the
+  worker never started. Set `requires = "completion"` to start the worker
+  anyway.
+- While the rule holds the start step, `agent_relay_status` reads `pending`.
+  Agent Relay's startup grace (`--reap-startup-grace`, default 15 minutes)
+  is measured from the build's creation, so the build and setup together
+  must finish within it. Past it, Agent Relay deletes the workspace and
+  reports that the worker never started.
+- Setup runs again when a prebuilt workspace is claimed, and the rule holds
+  the worker until it finishes. Write setup so it skips work already done,
+  for example `test -d ~/repo/.git || git clone ...`. A repo-scoped pool
+  cannot clone at prebuild time, because the repository URL arrives with
+  the session. Until setup finishes, `agent_relay_status` still shows the
+  prebuild's `idle`, not `pending`, and a setup that fails on a claim
+  leaves it at `idle`, which Agent Relay neither reaps nor reports.
+- A `cli_binary` wrapper that waits for setup is not needed and is a trap:
+  the status script recognizes the worker by the binary's basename, so a
+  wrapper not named `agent` reads as `orphaned`.
+
+The full walkthrough is in the Agent Relay docs under
+[Start the worker after workspace setup](https://coder.com/docs/ai-coder/agent-relay/setup#start-the-worker-after-workspace-setup).
+
 ## Worker credential
 
 The pool's service-account API key never leaves Agent Relay. When the relay
 claims a request, Cursor mints a
 [session token](https://cursor.com/docs/cloud-agent/self-hosted/pool#session-tokens)
-for that claim, and the relay stamps it as the ephemeral
-`agent_relay_credential` parameter. The module exports it as
-`AGENT_RELAY_CURSOR_TOKEN`, writes it to `worker-token` (mode `0600`), and
-starts the worker with `--auth-token-file`. The token stays off the worker's
-command line, and the supervisor unsets the variable so the worker and the
-agent's commands do not inherit it. The supervisor deletes the file when the
-worker exits.
+for that claim, and the relay sends it as an ephemeral workspace secret,
+which the agent injects as `AGENT_RELAY_CURSOR_TOKEN`. It never appears in
+the build's parameters or Terraform state. The module writes it to
+`worker-token` (mode `0600`) and starts the worker with `--auth-token-file`.
+The token stays off the worker's command line, and the supervisor unsets the
+variable so the worker and the agent's commands do not inherit it. The
+supervisor deletes the file when the worker exits.
 
 A session token connects only the claimed worker id, and Cursor refuses it on
 every endpoint a worker does not call. It stops working when the claim ends,
@@ -107,7 +183,7 @@ optional value an explicit one (`--flag=value`), or it consumes `start`.
 ```tf
 module "cursor_worker" {
   source          = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version         = "0.8.1"
+  version         = "1.0.2"
   agent_id        = coder_agent.main.id
   additional_args = ["--some-flag", "value", "--some-flag", "another value", "--another-flag"]
 }
@@ -117,8 +193,10 @@ module "cursor_worker" {
 
 Agent Relay verifies this contract against the template's active version at
 startup and refuses to serve a pool that does not satisfy it. Every parameter
-renders disabled with a "Set by Agent Relay on dispatch" placeholder; the
-credential is masked.
+renders disabled with a "Set by Agent Relay on dispatch" placeholder. The
+worker token is not among them: it is a workspace secret, so it never appears
+in the build's parameters or Terraform state, and the template should not
+set `AGENT_RELAY_CURSOR_TOKEN` itself.
 
 ## Scripts and logs
 
@@ -156,7 +234,7 @@ finishes a turn, not when the chat closes, so keep the timeout at or above
 | value             | meaning                                                                    |
 | ----------------- | -------------------------------------------------------------------------- |
 | `pending`         | start step running, supervisor has not written yet                         |
-| `idle`            | no credential: no worker starts on this agent start                        |
+| `idle`            | no worker token in this build: created by a person, or restarted by one    |
 | `working`         | worker alive, no session attached                                          |
 | `serving`         | worker alive, session attached (best effort, see `serving_log_pattern`)    |
 | `orphaned`        | worker process gone without recording an exit                              |
@@ -230,7 +308,7 @@ scrape the worker, and never publish it through a `coder_app`.
 ```tf
 module "cursor_worker" {
   source          = "registry.coder.com/coder/agent-relay-cursor/coder"
-  version         = "0.8.1"
+  version         = "1.0.2"
   agent_id        = coder_agent.main.id
   management_addr = "127.0.0.1:3290"
 }

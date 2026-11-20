@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Start step, run by coder-utils after the install step. Runs at
 # agent start with AGENT_RELAY_CURSOR_TOKEN (the Cursor session token
-# Agent Relay minted with the claim), CURSOR_AGENT_WORKER_ID (the claimed
-# worker id), AGENT_RELAY_CURSOR_POOL_NAME, and
-# AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT in scope.
+# Agent Relay created with the claim, which the agent injects from the
+# workspace secret), CURSOR_AGENT_WORKER_ID (the claimed worker id),
+# AGENT_RELAY_CURSOR_POOL_NAME, and AGENT_RELAY_CURSOR_IDLE_RELEASE_TIMEOUT
+# in scope.
 #
 # Starts the worker detached and exits, so the agent reaches the ready
 # lifecycle state instead of sitting in starting for the life of the
@@ -70,8 +71,8 @@ if [ -z "$${AGENT_RELAY_CURSOR_TOKEN:-}" ]; then
 	# A skipped cleanup may have left the previous session's token.
 	rm -f "$token_file" "$token_file.tmp" || echo "Cannot remove previous Cursor worker token" >&2
 	write_state "idle"
-	echo "No worker token set. No worker will start on this agent start."
-	echo "Idling. A new credential is required to start another worker."
+	echo "No worker token in this build. Agent Relay delivers one only on the build it dispatches."
+	echo "Idling. If Agent Relay did not create this workspace, delete it."
 	exit 0
 fi
 

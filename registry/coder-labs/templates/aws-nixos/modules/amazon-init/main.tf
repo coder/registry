@@ -6,53 +6,18 @@ terraform {
       source  = "coder/coder"
       version = ">= 2.5"
     }
-    random = {
-      source  = "hashicorp/random"
-      version = ">= 3.0"
-    }
   }
 }
-
-# Keep the log source stable across workspace restarts.
-resource "random_uuid" "log_source" {}
 
 data "coder_workspace" "me" {}
 
 data "coder_workspace_owner" "me" {}
 
-variable "agent_token" {
-  description = "Agent token. Written to `agent.env` at 0600 on a tmpfs."
-  type        = string
-  sensitive   = true
-}
-
-variable "agent_init_script" {
-  description = "`coder_agent.init_script`, run verbatim once the boot script has finished."
-  type        = string
-  sensitive   = true
-}
-
 variable "boot_script" {
-  description = <<-EOT
-    Shell script run on every boot, after the handoff and workspace facts are
-    published and before the agent is started.
-
-    It runs as root, as a child process, with these set:
-
-    | Variable                 | Meaning                                    |
-    | ------------------------ | ------------------------------------------ |
-    | `CODER_LOG_LIBRARY`      | path to source for `coder_log`             |
-    | `CODER_RUNTIME_DIR`      | the tmpfs this module owns                 |
-    | `CODER_WORKSPACE_FACTS`  | path to `workspace.json`                   |
-    | `CODER_ACCESS_URL`       | deployment URL                             |
-    | `CODER_AGENT_TOKEN`      | agent token                                |
-    | `CODER_LOG_SOURCE_ID`    | log source to write to                     |
-
-    Its exit status is reported and propagated, but never suppresses the agent
-    start: a workspace whose boot script failed still has to be reachable.
-  EOT
+  description = "Root script to run on every boot, after the workspace facts and files are written. It inherits amazon-init's environment, including git, nix and nixos-rebuild on `PATH`. Sensitive, as it usually carries agent tokens."
   type        = string
   default     = ""
+  sensitive   = true
 }
 
 variable "files" {
@@ -82,7 +47,7 @@ variable "values" {
     This is the injection point for anything the machine needs to know at
     runtime: one map entry rather than a new file and a new variable each
     time. Keys this module writes (`workspace`, `owner`, `owner_name`,
-    `owner_email`, `access_url`, `hostname`, `log_source_id`) win on conflict.
+    `owner_email`, `access_url`, `hostname`) win on conflict.
 
     Not for secrets. The file is world-readable, by design -- an unprivileged
     service reads it.
@@ -92,7 +57,7 @@ variable "values" {
 }
 
 variable "runtime_dir" {
-  description = "Directory for the agent handoff and this module's own state. Must be on a tmpfs: it holds the token."
+  description = "Directory for the bootstrap, the boot script and the workspace facts. Must be on a tmpfs: the boot script usually holds tokens."
   type        = string
   default     = "/run/coder"
 
@@ -103,34 +68,9 @@ variable "runtime_dir" {
 }
 
 variable "path" {
-  description = "Prepended to `PATH` for the boot script. amazon-init's own PATH is short."
+  description = "Prepended to `PATH` for the boot script."
   type        = string
   default     = "/run/current-system/sw/bin"
-}
-
-variable "log_display_name" {
-  description = "Name of that log source in the workspace UI."
-  type        = string
-  default     = "Boot"
-}
-
-variable "log_icon" {
-  description = "Icon for that log source."
-  type        = string
-  default     = "/icon/widgets.svg"
-}
-
-variable "log_budget_bytes" {
-  description = <<-EOT
-    How many bytes of log this module will push before going quiet.
-
-    Coder caps agent logs at 1 MiB per agent across every source, and
-    overflowing does not truncate: the agent is flagged overflowed and all
-    later logs are dropped permanently. The default leaves half the cap for
-    everything else.
-  EOT
-  type        = number
-  default     = 524288
 }
 
 variable "hostname" {
@@ -155,32 +95,16 @@ locals {
     owner_email = data.coder_workspace_owner.me.email
     access_url  = data.coder_workspace.me.access_url
     hostname    = local.hostname
-
-    log_source_id = random_uuid.log_source.result
   })
 
   bootstrap = templatefile("${path.module}/scripts/bootstrap.sh.tftpl", {
-    FACTS_JSON = jsonencode(local.facts)
-
-    LOG_SH      = file("${path.module}/scripts/log.sh")
+    FACTS_JSON  = jsonencode(local.facts)
     FILES       = local.files
     BOOT_SCRIPT = var.boot_script
-    INIT_SCRIPT = var.agent_init_script
 
-    ARG_ACCESS_URL  = base64encode(data.coder_workspace.me.access_url)
-    ARG_AGENT_TOKEN = base64encode(var.agent_token)
     ARG_RUNTIME_DIR = base64encode(var.runtime_dir)
     ARG_PATH        = base64encode(var.path)
-
-    ARG_LOG_SOURCE_ID = random_uuid.log_source.result
-    ARG_LOG_BUDGET    = var.log_budget_bytes
-    ARG_LOG_REGISTRATION_B64 = base64encode(jsonencode({
-      id           = random_uuid.log_source.result
-      display_name = var.log_display_name
-      icon         = var.log_icon
-    }))
-
-    ARG_HOSTNAME = base64encode(local.hostname)
+    ARG_HOSTNAME    = base64encode(local.hostname)
   })
 
   # EC2 caps user-data at 16 KiB; compress the bootstrap before sending it.
@@ -197,7 +121,7 @@ locals {
 }
 
 output "user_data" {
-  description = "Rendered EC2 user-data. Sensitive: it carries the agent token."
+  description = "Rendered EC2 user-data. Sensitive: it carries the boot script."
   value       = local.user_data
   sensitive   = true
 
@@ -208,13 +132,8 @@ output "user_data" {
   }
 }
 
-output "log_source_id" {
-  description = "Log source the boot output is streamed to."
-  value       = random_uuid.log_source.result
-}
-
 output "runtime_dir" {
-  description = "Directory holding the agent handoff, the logging library and the workspace facts."
+  description = "Directory holding the bootstrap, the boot script and the workspace facts."
   value       = var.runtime_dir
 }
 

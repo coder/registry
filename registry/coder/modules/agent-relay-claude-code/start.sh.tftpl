@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Start step, run by coder-utils after the install step. Runs at agent
-# start with SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET (the work-order JWT),
+# start with SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET (the work-order JWT,
+# which the agent injects from the workspace secret Agent Relay sends),
 # SELF_HOSTED_RUNNER_LOCK_TO_ACCOUNT, and
 # AGENT_RELAY_CLAUDE_CODE_RELEASE_IDLE_SESSION_MIN in scope.
 #
@@ -50,9 +51,12 @@ write_state() {
 }
 
 if [ -z "$${SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET:-}" ]; then
+	# No work order for this agent start: a workspace a person created,
+	# or a restart after the ephemeral secret was cleared. No runner can
+	# run either way; whatever a previous run recorded no longer applies.
 	write_state "idle"
-	echo "No work order set. No runner will start on this agent start."
-	echo "Idling. A new work order is required to start another runner."
+	echo "No work order in this build. Agent Relay delivers one only on the build it dispatches."
+	echo "Idling. If Agent Relay did not create this workspace, delete it."
 	exit 0
 fi
 

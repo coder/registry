@@ -203,17 +203,34 @@ describe("agent-relay-claude-code", () => {
     // No SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET: a workspace a human created by hand.
     const { start } = await runScripts(id, scripts, []);
     expect(start.exitCode).toBe(0);
-    expect(start.stdout).toContain("No work order set");
+    expect(start.stdout).toContain("No work order in this build");
     expect(await readState(id)).toBe("idle");
   });
 
   it("clears terminal state across a restart without a credential", async () => {
+    // The secret is ephemeral, so an agent restart runs the start step
+    // with no credential. No runner can run without a fresh one, and the
+    // cleanup clears the previous run's state, so a stale "done 3" is
+    // never reported as this run's.
     const { id, scripts } = await setup({ install_cli: "false" });
     await execContainer(id, ["mkdir", "-p", MODULE_DIR]);
     await writeFileContainer(id, STATE_FILE, "done 3\n", { user: "root" });
     const { start } = await runScripts(id, scripts, []);
     expect(start.exitCode).toBe(0);
     expect(await readState(id)).toBe("idle");
+  });
+
+  it("sets no coder_env for the work order's variable", async () => {
+    // The agent injects SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET from the
+    // workspace secret. A coder_env of that name, as 0.x had, would put
+    // the credential back in Terraform state.
+    const state = await runTerraformApply(import.meta.dir, { agent_id: "foo" });
+    const envNames = state.resources
+      .filter((resource) => resource.type === "coder_env")
+      .flatMap((resource) =>
+        resource.instances.map((instance) => instance.attributes.name),
+      );
+    expect(envNames).not.toContain("SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET");
   });
 
   it("reports runner-agent-missing when the CLI is absent", async () => {

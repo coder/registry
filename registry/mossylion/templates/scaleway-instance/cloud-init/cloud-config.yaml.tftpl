@@ -7,6 +7,10 @@ users:
     sudo: ALL=(ALL) NOPASSWD:ALL
     shell: /bin/bash
 
+# Fedora lacks sgdisk, which cloud-init's disk_setup needs to partition a blank disk
+bootcmd:
+  - [sh, -c, "command -v sgdisk >/dev/null || ! command -v dnf >/dev/null || dnf install -y gdisk"]
+
 # Setup persistent storage disk
 disk_setup:
   /dev/sdb:

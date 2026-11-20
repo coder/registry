@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export PATH="$${UV_TOOL_BIN_DIR:-$${HOME}/.local/bin}:$${PIPX_BIN_DIR:-$${HOME}/.local/bin}:$${PATH}"
+export AIRFLOW__CORE__LOAD_EXAMPLES=false
+LOG_PATH=$(echo -n '${LOG_PATH}' | base64 -d)
+LOG_PATH="$${LOG_PATH/#\$HOME/$${HOME}}"
+LOG_DIRECTORY="$${HOME}/.coder-modules/nataindata/apache-airflow/logs"
+mkdir -p "$${LOG_DIRECTORY}" "$(dirname "$${LOG_PATH}")"
+
+# The database and existing users remain in Airflow's own AIRFLOW_HOME.
+airflow db migrate
+USERS=$(airflow users list --output json)
+ADMIN_EXISTS=$(printf '%s' "$${USERS}" | python3 -c 'import json, sys; print(any(user["username"] == "admin" for user in json.load(sys.stdin)))')
+if [[ "$${ADMIN_EXISTS}" = "False" ]]; then
+  airflow users create -u admin -p admin -r Admin -e admin@admin.com -f Coder -l User
+fi
+
+airflow webserver --port '${PORT}' --daemon --stdout "$${LOG_PATH}" --stderr "$${LOG_PATH}"
+airflow scheduler --daemon --stdout "$${LOG_DIRECTORY}/scheduler.log" --stderr "$${LOG_DIRECTORY}/scheduler.log"
