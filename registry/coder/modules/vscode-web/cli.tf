@@ -51,7 +51,7 @@ locals {
 module "cli" {
   count   = var.use_cli ? 1 : 0
   source  = "registry.coder.com/coder/coder-utils/coder"
-  version = "0.0.2"
+  version = "0.0.3"
 
   agent_id            = var.agent_id
   module_directory    = local.module_directory

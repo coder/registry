@@ -273,13 +273,13 @@ module "git-config" {
 module "code-server" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/code-server/coder"
-  version  = "1.3.1"
+  version  = "1.6.0"
   agent_id = coder_agent.dev.id
 }
 
 module "cursor" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/cursor/coder"
-  version  = "1.3.0"
+  version  = "1.4.2"
   agent_id = coder_agent.dev.id
 }
