@@ -66,7 +66,7 @@ resource "coder_env" "path" {
 module "coder_utils" {
   count   = var.develop.enabled && var.develop.prebuild ? 1 : 0
   source  = "registry.coder.com/coder/coder-utils/coder"
-  version = "0.0.2"
+  version = "0.0.3"
 
   agent_id            = var.agent_id
   module_directory    = local.develop_module_dir
