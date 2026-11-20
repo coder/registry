@@ -13,7 +13,7 @@ Install and configure [Auggie CLI](https://docs.augmentcode.com/cli/overview) in
 ```tf
 module "auggie" {
   source   = "registry.coder.com/coder-labs/auggie/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
 }
 ```
@@ -32,7 +32,7 @@ locals {
 
 module "auggie" {
   source                = "registry.coder.com/coder-labs/auggie/coder"
-  version               = "1.0.0"
+  version               = "1.0.1"
   agent_id              = coder_agent.main.id
   workdir               = local.auggie_workdir
   augment_session_token = var.augment_session_token
@@ -58,7 +58,7 @@ resource "coder_app" "auggie" {
 ```tf
 module "auggie" {
   source   = "registry.coder.com/coder-labs/auggie/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
 
   mcp       = <<-EOF
@@ -89,7 +89,7 @@ module "auggie" {
 ```tf
 module "auggie" {
   source         = "registry.coder.com/coder-labs/auggie/coder"
-  version        = "1.0.0"
+  version        = "1.0.1"
   agent_id       = coder_agent.main.id
   auggie_version = "0.36.0"
 }
@@ -102,7 +102,7 @@ The module exposes the `scripts` output: an ordered list of `coder exp sync` nam
 ```tf
 module "auggie" {
   source   = "registry.coder.com/coder-labs/auggie/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
 }
 
