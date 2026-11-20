@@ -14,7 +14,7 @@ Installs [Tailscale](https://tailscale.com) and joins the workspace to your tail
 module "tailscale" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/dy-ma/tailscale/coder"
-  version             = "1.0.0"
+  version             = "1.0.1"
   agent_id            = coder_agent.main.id
   oauth_client_id     = "kFvxxxxxxxxxx"
   oauth_client_secret = "tskey-client-xxxx"
@@ -37,7 +37,7 @@ For VMs or long-lived containers where you want the node to keep its identity ac
 module "tailscale" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/dy-ma/tailscale/coder"
-  version             = "1.0.0"
+  version             = "1.0.1"
   agent_id            = coder_agent.main.id
   oauth_client_id     = "kFvxxxxxxxxxx"
   oauth_client_secret = "tskey-client-xxxx"
@@ -55,7 +55,7 @@ For Kubernetes pods or Docker containers without access to `/dev/net/tun`. Users
 module "tailscale" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/dy-ma/tailscale/coder"
-  version             = "1.0.0"
+  version             = "1.0.1"
   agent_id            = coder_agent.main.id
   oauth_client_id     = "kFvxxxxxxxxxx"
   oauth_client_secret = "tskey-client-xxxx"
@@ -73,7 +73,7 @@ If you prefer to manage key rotation externally, pass an auth key directly and s
 module "tailscale" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/dy-ma/tailscale/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
   auth_key = "tskey-auth-xxxx"
 }
@@ -87,7 +87,7 @@ Point `tailscale_api_url` at your Headscale server and pass a pre-generated auth
 module "tailscale" {
   count             = data.coder_workspace.me.start_count
   source            = "registry.coder.com/dy-ma/tailscale/coder"
-  version           = "1.0.0"
+  version           = "1.0.1"
   agent_id          = coder_agent.main.id
   auth_key          = "tskey-auth-xxxx"
   tailscale_api_url = "https://headscale.example.com"
@@ -102,7 +102,7 @@ Enable Tailscale SSH so tailnet members can reach workspaces directly without ma
 module "tailscale" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/dy-ma/tailscale/coder"
-  version             = "1.0.0"
+  version             = "1.0.1"
   agent_id            = coder_agent.main.id
   oauth_client_id     = "kFvxxxxxxxxxx"
   oauth_client_secret = "tskey-client-xxxx"
@@ -144,7 +144,7 @@ Pass any additional `tailscale up` flags not covered by dedicated variables:
 module "tailscale" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/dy-ma/tailscale/coder"
-  version             = "1.0.0"
+  version             = "1.0.1"
   agent_id            = coder_agent.main.id
   oauth_client_id     = "kFvxxxxxxxxxx"
   oauth_client_secret = "tskey-client-xxxx"
