@@ -64,6 +64,9 @@ if [ "${DISABLE_TRUST}" = true ]; then
 fi
 
 run_vscode_web() {
+  if [ "${RUN_SERVER}" != true ]; then
+    return 0
+  fi
   echo "👷 Running $VSCODE_WEB serve-local $EXTENSION_ARG $SERVER_BASE_PATH_ARG $DISABLE_TRUST_ARG --port ${PORT} --host 127.0.0.1 --accept-server-license-terms --without-connection-token --telemetry-level ${TELEMETRY_LEVEL} in the background..."
   echo "Check logs at ${LOG_PATH}!"
   "$VSCODE_WEB" serve-local "$EXTENSION_ARG" "$SERVER_BASE_PATH_ARG" "$DISABLE_TRUST_ARG" --port "${PORT}" --host 127.0.0.1 --accept-server-license-terms --without-connection-token --telemetry-level "${TELEMETRY_LEVEL}" > "${LOG_PATH}" 2>&1 &
@@ -96,7 +99,7 @@ fi
 
 if [ "$SKIP_INSTALL" != true ]; then
   # Create install prefix
-  mkdir -p ${INSTALL_PREFIX}
+  mkdir -p "${INSTALL_PREFIX}"
 
   printf "$${BOLD}Installing Microsoft Visual Studio Code Server!\n"
 
@@ -104,7 +107,7 @@ if [ "$SKIP_INSTALL" != true ]; then
   ARCH=$(uname -m)
   case "$ARCH" in
     x86_64) ARCH="x64" ;;
-    aarch64) ARCH="arm64" ;;
+    aarch64 | arm64) ARCH="arm64" ;;
     *)
       echo "Unsupported architecture"
       exit 1
@@ -122,19 +125,37 @@ if [ "$SKIP_INSTALL" != true ]; then
     DETECTED_PLATFORM="linux"
   fi
 
+  UPDATE_PLATFORM="server-$DETECTED_PLATFORM-$ARCH-web"
+  if [ "$DETECTED_PLATFORM" = darwin ] && [ "$ARCH" = x64 ]; then
+    UPDATE_PLATFORM=server-darwin-web
+  elif [ "$DETECTED_PLATFORM" = alpine ] && [ "$ARCH" = x64 ]; then
+    UPDATE_PLATFORM=server-linux-alpine-web
+  fi
+
   # Check if a specific VS Code Web commit ID was provided
   if [ -n "${COMMIT_ID}" ]; then
     HASH="${COMMIT_ID}"
   else
-    HASH=$(curl -fsSL https://update.code.visualstudio.com/api/commits/stable/server-$DETECTED_PLATFORM-$ARCH-web | cut -d '"' -f 2)
+    HASH=$(curl -fsSL "https://update.code.visualstudio.com/api/commits/stable/$UPDATE_PLATFORM" | cut -d '"' -f 2)
   fi
   printf "$${BOLD}VS Code Web commit id version $HASH.\n"
 
-  output=$(curl -fsSL "https://vscode.download.prss.microsoft.com/dbazure/download/stable/$HASH/vscode-server-$DETECTED_PLATFORM-$ARCH-web.tar.gz" | tar -xz -C "${INSTALL_PREFIX}" --strip-components 1)
-
-  if [ $? -ne 0 ]; then
-    echo "Failed to install Microsoft Visual Studio Code Server: $output"
-    exit 1
+  if [ "$DETECTED_PLATFORM" = darwin ]; then
+    archive=$(mktemp)
+    # macOS ships bsdtar, which extracts the official ZIP and strips its root.
+    if ! curl -fsSL "https://update.code.visualstudio.com/commit:$HASH/$UPDATE_PLATFORM/stable" -o "$archive" \
+      || ! /usr/bin/tar -xf "$archive" -C "${INSTALL_PREFIX}" --strip-components 1; then
+      rm -f "$archive"
+      echo "Failed to install Microsoft Visual Studio Code Server"
+      exit 1
+    fi
+    rm -f "$archive"
+  else
+    output=$(curl -fsSL "https://vscode.download.prss.microsoft.com/dbazure/download/stable/$HASH/vscode-$UPDATE_PLATFORM.tar.gz" | tar -xz -C "${INSTALL_PREFIX}" --strip-components 1)
+    if [ $? -ne 0 ]; then
+      echo "Failed to install Microsoft Visual Studio Code Server: $output"
+      exit 1
+    fi
   fi
   printf "$${BOLD}VS Code Web has been installed.\n"
 fi
@@ -147,7 +168,7 @@ for extension in "$${EXTENSIONLIST[@]}"; do
     continue
   fi
   printf "🧩 Installing extension $${CODE}$extension$${RESET}...\n"
-  output=$($VSCODE_WEB "$EXTENSION_ARG" --install-extension "$extension" --force)
+  output=$("$VSCODE_WEB" "$EXTENSION_ARG" --install-extension "$extension" --force)
   if [ $? -ne 0 ]; then
     echo "Failed to install extension: $extension: $output"
   fi
@@ -196,7 +217,7 @@ if [ "${AUTO_INSTALL_EXTENSIONS}" = true ]; then
       extensions=$(strip_jsonc_for_extensions "${WORKSPACE}" \
         | jq -r '(.extensions.recommendations // [])[]')
       for extension in $extensions; do
-        $VSCODE_WEB "$EXTENSION_ARG" --install-extension "$extension" --force
+        "$VSCODE_WEB" "$EXTENSION_ARG" --install-extension "$extension" --force
       done
     else
       # Fallback to folder-based .vscode/extensions.json (existing behavior)
@@ -209,7 +230,7 @@ if [ "${AUTO_INSTALL_EXTENSIONS}" = true ]; then
         extensions=$(strip_jsonc_for_extensions "$WORKSPACE_DIR/.vscode/extensions.json" \
           | jq -r '(.recommendations // [])[]')
         for extension in $extensions; do
-          $VSCODE_WEB "$EXTENSION_ARG" --install-extension "$extension" --force
+          "$VSCODE_WEB" "$EXTENSION_ARG" --install-extension "$extension" --force
         done
       fi
     fi
