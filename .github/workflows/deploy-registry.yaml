@@ -3,6 +3,8 @@ name: deploy-registry
 on:
   # Module releases: tag-release.yaml calls this once after it pushes all of a run's tags.
   workflow_call:
+  # Manual redeploy, e.g. after a failed build.
+  workflow_dispatch:
   schedule:
     # Runs at 02:30 UTC Monday through Friday
     - cron: "30 2 * * 1-5"
@@ -19,6 +21,9 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # The deploy environment also accepts release tags; a manual run from one would use that tag's
+    # older copy of this workflow.
+    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
     # Builds usually take about 6 minutes; the job waits for both to finish.
     timeout-minutes: 30
     # Each deploy builds the latest main and production, so a queued run supersedes older queued
