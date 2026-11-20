@@ -75,7 +75,8 @@ git checkout main && git pull
 
 ### Publishing
 
-Changes are automatically published to [registry.coder.com](https://registry.coder.com) after tags are pushed.
+Once the **Create tags** job finishes, the **Deploy registry** job in the same run deploys
+[registry.coder.com](https://registry.coder.com) once for all the new tags.
 
 ## README Requirements
 
