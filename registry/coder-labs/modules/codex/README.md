@@ -34,9 +34,14 @@ administrator. Follow OpenAI's [OS-specific sandbox prerequisites](https://devel
 The module does not install system packages or change host security settings.
 
 After validating the CLI, the module logs a non-fatal warning on Linux when
-`bwrap` is missing, including with `install_codex = false` or `manage_config = false`.
-A successful `codex --version` or a `bwrap` executable on `PATH` does not verify
-that sandboxed commands can run under the workspace's kernel and security policy.
+`bwrap` is missing or cannot create a user namespace and read-only mount, including
+with `install_codex = false` or `manage_config = false`. The original probe error
+is included in the install log. This prerequisite check does not validate every
+Codex sandbox policy; verify the intended policy with `codex sandbox` in the workspace.
+
+In containers, the runtime's seccomp and AppArmor policies can block sandbox setup
+even when `bwrap` is installed. See the [Docker sandbox example](./examples/docker-sandbox/README.md)
+for diagnosis, explicit template/host configuration, and isolation checks.
 
 ## Existing user-managed configuration
 
