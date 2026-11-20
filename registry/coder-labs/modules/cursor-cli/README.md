@@ -13,7 +13,7 @@ Install and configure the [Cursor Agent CLI](https://cursor.com/docs/cli/overvie
 ```tf
 module "cursor-cli" {
   source   = "registry.coder.com/coder-labs/cursor-cli/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
   api_key  = var.cursor_api_key
 }
@@ -33,7 +33,7 @@ locals {
 
 module "cursor-cli" {
   source   = "registry.coder.com/coder-labs/cursor-cli/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
   workdir  = local.cursor_workdir
   api_key  = var.cursor_api_key
@@ -61,7 +61,7 @@ When `workdir` is set, the module creates it if missing and marks it as a truste
 ```tf
 module "cursor-cli" {
   source   = "registry.coder.com/coder-labs/cursor-cli/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
   api_key  = var.cursor_api_key
@@ -99,7 +99,7 @@ The module exposes the `scripts` output: an ordered list of `coder exp sync` nam
 ```tf
 module "cursor-cli" {
   source   = "registry.coder.com/coder-labs/cursor-cli/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
 }
 

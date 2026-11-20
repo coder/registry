@@ -220,7 +220,7 @@ resource "coder_env" "aws_builder_id_token" {
 
 module "coder_utils" {
   source  = "registry.coder.com/coder/coder-utils/coder"
-  version = "0.0.2"
+  version = "0.0.3"
 
   agent_id            = var.agent_id
   module_directory    = local.module_directory
