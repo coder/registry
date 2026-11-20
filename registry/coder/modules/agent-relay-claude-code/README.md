@@ -16,7 +16,7 @@ on each build and runs the Claude Code self-hosted runner.
 ```tf
 module "claude_code_runner" {
   source   = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version  = "1.0.1"
+  version  = "1.0.2"
   agent_id = coder_agent.main.id
 
   # Downloads the Claude Code CLI at start when it is not in the image. Bake
@@ -151,7 +151,7 @@ can contain spaces or quotes without escaping. Flags the module already sets
 ```tf
 module "claude_code_runner" {
   source          = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version         = "1.0.1"
+  version         = "1.0.2"
   agent_id        = coder_agent.main.id
   additional_args = ["--some-flag", "value", "--some-flag", "another value", "--another-flag"]
 }
@@ -254,7 +254,7 @@ fails the start step with `failed invalid-release-idle-session-min`.
 ```tf
 module "claude_code_runner" {
   source                   = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version                  = "1.0.1"
+  version                  = "1.0.2"
   agent_id                 = coder_agent.main.id
   release_idle_session_min = 30
 }
@@ -293,7 +293,7 @@ from reaching it.
 ```tf
 module "claude_code_runner" {
   source      = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version     = "1.0.1"
+  version     = "1.0.2"
   agent_id    = coder_agent.main.id
   health_port = 3290
 }
