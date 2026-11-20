@@ -465,8 +465,8 @@ locals {
 }
 
 module "coder_utils" {
-  # TODO: switch to registry source version "0.0.3" once coder/registry#1264 is merged and released.
-  source = "git::https://github.com/coder/registry.git//registry/coder/modules/coder-utils?ref=35C4n0r/remove-coder-utils-coder-task-ref"
+  source  = "registry.coder.com/coder/coder-utils/coder"
+  version = "0.0.3"
 
   agent_id            = var.agent_id
   module_directory    = "$HOME/${local.module_dir_name}"
