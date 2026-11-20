@@ -469,7 +469,10 @@ export const execModuleScript = async (
 ) => {
   const envArgs = env
     ? Object.entries(env)
-        .map(([key, value]) => `export ${key}="${value.replace(/"/g, '\\"')}"`)
+        .map(
+          ([key, value]) =>
+            `export ${key}="${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`,
+        )
         .join(" && ") + " && "
     : "";
   const resp = await execContainer(id, [
