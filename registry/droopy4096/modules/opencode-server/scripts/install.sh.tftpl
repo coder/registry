@@ -1,0 +1,197 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALL_OPENCODE="${ARG_INSTALL_OPENCODE}"
+OPENCODE_VERSION="${ARG_OPENCODE_VERSION}"
+INSTALL_URL="${ARG_INSTALL_URL}"
+BINARY_URL="${ARG_BINARY_URL}"
+OPENCODE_BIN="${ARG_OPENCODE_BIN}"
+WAIT_FOR="${ARG_WAIT_FOR}"
+WAIT_UNIT="${ARG_WAIT_UNIT}"
+PASSWORD_FILE="${ARG_PASSWORD_FILE}"
+ENABLE_AI_GATEWAY="${ARG_ENABLE_AI_GATEWAY}"
+CONFIG_JSON_B64="${ARG_CONFIG_JSON_B64}"
+
+export PATH="$HOME/.opencode/bin:$PATH"
+
+workdir="$(mktemp -d)"
+trap 'rm -rf "$workdir"' EXIT
+
+# musl (Alpine) needs OpenCode's -musl builds plus libstdc++ and libgcc.
+is_musl() {
+  [ -f /etc/alpine-release ] && return 0
+  compgen -G "/lib/ld-musl-*.so.1" >/dev/null && return 0
+  ldd --version 2>&1 | grep -qi musl
+}
+
+# Release target, named like OpenCode's archives: x64, x64-baseline,
+# x64-musl, x64-baseline-musl, arm64 or arm64-musl.
+opencode_target() {
+  local arch target
+  case "$(uname -m)" in
+    x86_64 | amd64) arch="x64" ;;
+    aarch64 | arm64) arch="arm64" ;;
+    *) arch="$(uname -m)" ;;
+  esac
+  target="$arch"
+  # x64 builds without the baseline suffix need AVX2.
+  if [ "$arch" = "x64" ] && [ -r /proc/cpuinfo ] && ! grep -qwi avx2 /proc/cpuinfo; then
+    target="$target-baseline"
+  fi
+  if is_musl; then
+    target="$target-musl"
+  fi
+  echo "$target"
+}
+
+# Fail early with a clear message instead of a half-finished install.
+require_tools() {
+  local tool
+  for tool in "$@"; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+      echo "ERROR: '$tool' is required to unpack OpenCode; add it to the image (for example 'microdnf install -y tar gzip' on ubi-minimal)." >&2
+      exit 1
+    fi
+  done
+}
+
+# Install from a binary or release archive, e.g. an internal artifact mirror.
+install_from_binary_url() {
+  local arch target url download bin
+  target="$(opencode_target)"
+  arch="$${target%%-*}"
+  url="$${BINARY_URL//\{target\}/$target}"
+  url="$${url//\{arch\}/$arch}"
+  if is_musl && [[ "$BINARY_URL" != *"{target}"* ]]; then
+    echo "WARNING: this system uses musl libc; make sure $url is a -musl build, or use {target} in binary_url." >&2
+  fi
+  download="$workdir/download"
+  echo "Downloading OpenCode from $url"
+  curl -fsSL --retry 3 "$url" -o "$download"
+  case "$url" in
+    *.tar.gz | *.tgz)
+      require_tools tar gzip
+      tar -xzf "$download" -C "$workdir"
+      bin="$workdir/opencode"
+      ;;
+    *.zip)
+      require_tools unzip
+      unzip -oq "$download" -d "$workdir"
+      bin="$workdir/opencode"
+      ;;
+    *) bin="$download" ;;
+  esac
+  if [ ! -f "$bin" ]; then
+    echo "ERROR: no 'opencode' binary at the top level of $url." >&2
+    exit 1
+  fi
+  mkdir -p "$HOME/.opencode/bin"
+  install -m 0755 "$bin" "$HOME/.opencode/bin/opencode"
+}
+
+# Wait for other startup scripts (for example mise installing OpenCode) using
+# the agent's own dependency tracking.
+if [ -n "$WAIT_FOR" ]; then
+  echo "Waiting for startup scripts: $WAIT_FOR"
+  read -r -a wait_units <<< "$WAIT_FOR"
+  coder exp sync want "$WAIT_UNIT" "$${wait_units[@]}"
+  coder exp sync start "$WAIT_UNIT" --timeout 10m
+  coder exp sync complete "$WAIT_UNIT"
+fi
+
+if [ -n "$OPENCODE_BIN" ]; then
+  echo "Using OpenCode at $OPENCODE_BIN; skipping installation."
+elif [ "$INSTALL_OPENCODE" = "true" ]; then
+  if command -v opencode >/dev/null 2>&1 &&
+    { [ -z "$OPENCODE_VERSION" ] || [ "$(opencode --version 2>/dev/null)" = "$OPENCODE_VERSION" ]; }; then
+    echo "OpenCode $(opencode --version) already installed."
+  elif [ -n "$BINARY_URL" ]; then
+    install_from_binary_url
+  else
+    echo "Installing OpenCode $${OPENCODE_VERSION:-latest 1.x} from $INSTALL_URL"
+    require_tools tar gzip
+    installer="$workdir/install.sh"
+    curl -fsSL --retry 3 "$INSTALL_URL" -o "$installer"
+    if [ -n "$OPENCODE_VERSION" ]; then
+      bash "$installer" --no-modify-path --version "$OPENCODE_VERSION"
+    else
+      bash "$installer" --no-modify-path
+    fi
+  fi
+fi
+
+oc="$${OPENCODE_BIN:-opencode}"
+if ! command -v "$oc" >/dev/null 2>&1; then
+  if [ -n "$OPENCODE_BIN" ]; then
+    echo "ERROR: opencode_bin $OPENCODE_BIN does not exist or is not executable." >&2
+  else
+    echo "ERROR: opencode not found on PATH. Set install_opencode = true, set opencode_bin, or add OpenCode 1.x to the image." >&2
+  fi
+  exit 1
+fi
+
+if ! version="$("$oc" --version 2> "$workdir/version.err")"; then
+  echo "ERROR: $oc --version failed: $(head -n 3 "$workdir/version.err")" >&2
+  if is_musl; then
+    echo "This system uses musl libc (for example Alpine). OpenCode needs a -musl build and the C++ runtime: apk add libstdc++ libgcc" >&2
+  fi
+  exit 1
+fi
+case "$version" in
+  1.*) ;;
+  *)
+    echo "ERROR: found OpenCode $version; this module supports OpenCode 1.x only." >&2
+    exit 1
+    ;;
+esac
+
+# Make opencode available in user shells without editing profiles.
+if [ -n "$${CODER_SCRIPT_BIN_DIR:-}" ]; then
+  if [ -n "$OPENCODE_BIN" ]; then
+    ln -sf "$OPENCODE_BIN" "$CODER_SCRIPT_BIN_DIR/opencode"
+  elif [ -x "$HOME/.opencode/bin/opencode" ]; then
+    ln -sf "$HOME/.opencode/bin/opencode" "$CODER_SCRIPT_BIN_DIR/opencode"
+  fi
+fi
+
+config_dir="$${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+config_file="$config_dir/opencode.json"
+mkdir -p "$config_dir"
+
+if [ -n "$CONFIG_JSON_B64" ]; then
+  echo "$CONFIG_JSON_B64" | base64 -d > "$config_file"
+  echo "Wrote $config_file from config_json."
+elif [ "$ENABLE_AI_GATEWAY" = "true" ] && [ ! -f "$config_file" ]; then
+  cat > "$config_file" <<'JSON'
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "anthropic": {
+      "options": {
+        "baseURL": "{env:OPENCODE_SERVER_AI_GATEWAY_URL}/anthropic/v1",
+        "apiKey": "{env:OPENCODE_SERVER_AI_GATEWAY_TOKEN}"
+      }
+    },
+    "openai": {
+      "options": {
+        "baseURL": "{env:OPENCODE_SERVER_AI_GATEWAY_URL}/openai/v1",
+        "apiKey": "{env:OPENCODE_SERVER_AI_GATEWAY_TOKEN}"
+      }
+    }
+  }
+}
+JSON
+  echo "Wrote $config_file for Coder AI Gateway."
+else
+  echo "Leaving existing OpenCode config alone."
+fi
+
+if [ ! -s "$PASSWORD_FILE" ]; then
+  mkdir -p "$(dirname "$PASSWORD_FILE")"
+  (
+    umask 077
+    head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$PASSWORD_FILE"
+  )
+  echo "Generated server password in $PASSWORD_FILE."
+fi
+chmod 600 "$PASSWORD_FILE"
