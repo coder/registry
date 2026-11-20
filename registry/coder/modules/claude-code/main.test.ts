@@ -15,15 +15,14 @@ import {
   runTerraformInit,
   TerraformState,
   writeFileContainer,
+  extractCoderEnvVars,
+  writeExecutable,
 } from "~test";
-import { extractCoderEnvVars, writeExecutable } from "../agentapi/test-util";
 import path from "path";
 
 // coder-utils orchestrates this module's scripts and can produce multiple
-// coder_script resources (pre_install, install, post_install). The shared
-// `setup` helper in ../agentapi/test-util.ts assumes a single coder_script
-// via findResourceInstance, so we define a local setup helper that collects
-// every coder_script in run order.
+// coder_script resources (pre_install, install, post_install), so we define a
+// local setup helper that collects every coder_script in run order.
 
 interface ModuleScripts {
   pre_install?: string;

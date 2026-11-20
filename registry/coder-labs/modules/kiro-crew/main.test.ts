@@ -14,8 +14,8 @@ import {
   runTerraformApply,
   runTerraformInit,
   TerraformState,
+  writeExecutable,
 } from "~test";
-import { writeExecutable } from "../../../coder/modules/agentapi/test-util";
 import path from "path";
 
 interface ModuleScripts {

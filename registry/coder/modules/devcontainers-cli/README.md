@@ -15,7 +15,7 @@ The module uses the first available package manager in this order: Yarn, npm, th
 ```tf
 module "devcontainers-cli" {
   source             = "registry.coder.com/coder/devcontainers-cli/coder"
-  version            = "2.0.0"
+  version            = "2.0.1"
   agent_id           = coder_agent.example.id
   start_blocks_login = false
 }
@@ -40,7 +40,7 @@ Use an exact version for reproducible workspace builds. Both `0.80.0` and `v0.80
 ```tf
 module "devcontainers-cli" {
   source                    = "registry.coder.com/coder/devcontainers-cli/coder"
-  version                   = "2.0.0"
+  version                   = "2.0.1"
   agent_id                  = coder_agent.example.id
   devcontainers_cli_version = "0.80.0"
 }
@@ -63,7 +63,7 @@ For a template with a configured `module "jfrog"`, order the modules on the same
 ```tf
 module "devcontainers-cli" {
   source   = "registry.coder.com/coder/devcontainers-cli/coder"
-  version  = "2.0.0"
+  version  = "2.0.1"
   agent_id = coder_agent.main.id
 }
 
