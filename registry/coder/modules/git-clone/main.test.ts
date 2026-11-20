@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, setDefaultTimeout } from "bun:test";
 import {
   execContainer,
   findResourceInstance,
@@ -9,6 +9,9 @@ import {
   type scriptOutput,
   type TerraformState,
 } from "~test";
+
+// The first test to use an image pulls it, which can outlast bun's 5s default.
+setDefaultTimeout(60 * 1000);
 
 const executeScriptInContainer = async (
   state: TerraformState,
@@ -411,6 +414,40 @@ describe("git-clone", async () => {
         "argv:--config=user.name=Coder User",
         "argv:-c",
         "argv:core.sshCommand=ssh -i /tmp/key",
+        "argv:fake-url",
+        "argv:/root/fake-url",
+      ].join("\n"),
+    );
+  });
+
+  it("passes additional_args to git clone before extra_args", async () => {
+    const state = await runTerraformApply(import.meta.dir, {
+      agent_id: "foo",
+      url: "fake-url",
+      additional_args: JSON.stringify([
+        "--recurse-submodules",
+        "-c",
+        "user.name=Coder User",
+        "-c",
+        "core.sshCommand=ssh -i /tmp/key",
+      ]),
+      extra_args: JSON.stringify(["--jobs=8"]),
+    });
+    const output = await executeScriptInContainer(
+      state,
+      "alpine/git",
+      installFakeGit,
+    );
+    expect(output.exitCode).toBe(0);
+    expect(output.stdout.join("\n")).toContain(
+      [
+        "argv:clone",
+        "argv:--recurse-submodules",
+        "argv:-c",
+        "argv:user.name=Coder User",
+        "argv:-c",
+        "argv:core.sshCommand=ssh -i /tmp/key",
+        "argv:--jobs=8",
         "argv:fake-url",
         "argv:/root/fake-url",
       ].join("\n"),
