@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ARG_INSTALL_XPRA='${ARG_INSTALL_XPRA}'
+ARG_INSTALL_OPENBOX='${ARG_INSTALL_OPENBOX}'
+
+LOCK_FILE="/tmp/coder-phorcys-xpra-install.lock"
+
+need_xpra=false
+need_openbox=false
+if [ "$${ARG_INSTALL_XPRA}" = "true" ] && ! command -v xpra > /dev/null 2>&1; then
+  need_xpra=true
+fi
+if [ "$${ARG_INSTALL_OPENBOX}" = "true" ] && ! command -v openbox > /dev/null 2>&1; then
+  need_openbox=true
+fi
+
+install_packages() {
+  # shellcheck disable=SC1091
+  . /etc/os-release
+  case "$${ID}:$${ID_LIKE:-}" in
+    debian:* | ubuntu:* | *:*debian* | *:*ubuntu*) ;;
+    *)
+      echo "ERROR: automatic install supports only Debian and Ubuntu (found '$${ID}')."
+      echo "Install xpra and openbox in the image, then set install_xpra = false and install_openbox = false."
+      exit 1
+      ;;
+  esac
+
+  if ! sudo -n true 2> /dev/null; then
+    echo "ERROR: installing packages needs passwordless sudo."
+    echo "Install xpra and openbox in the image, then set install_xpra = false and install_openbox = false."
+    exit 1
+  fi
+
+  apt_get() {
+    sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 "$@"
+  }
+
+  local packages=()
+  if [ "$${need_xpra}" = "true" ]; then
+    apt_get update -qq
+    apt_get install -y -qq --no-install-recommends ca-certificates curl
+
+    local sources_url="https://raw.githubusercontent.com/Xpra-org/xpra/master/packaging/repos/$${VERSION_CODENAME}/xpra.sources"
+    if ! curl -fsSL "$${sources_url}" -o /tmp/xpra.sources; then
+      echo "ERROR: xpra.org has no repository for '$${VERSION_CODENAME}'."
+      exit 1
+    fi
+    sudo curl -fsSL https://xpra.org/xpra.asc -o /usr/share/keyrings/xpra.asc
+    sudo mv /tmp/xpra.sources /etc/apt/sources.list.d/xpra.sources
+
+    packages+=(xpra xpra-x11 xpra-html5 xpra-codecs-extras xvfb xauth dbus-x11)
+  fi
+  if [ "$${need_openbox}" = "true" ]; then
+    packages+=(openbox)
+  fi
+
+  apt_get update -qq
+  # xpra-codecs-extras does not depend on libx264, but the x264 encoder needs it.
+  local x264
+  x264=$(apt-cache pkgnames libx264- | grep -E '^libx264-[0-9]+$' | sort -V | tail -n 1 || true)
+  if [ "$${need_xpra}" = "true" ] && [ -n "$${x264}" ]; then
+    packages+=("$${x264}")
+  fi
+
+  echo "Installing: $${packages[*]}"
+  apt_get install -y -qq --no-install-recommends "$${packages[@]}"
+}
+
+if [ "$${need_xpra}" = "true" ] || [ "$${need_openbox}" = "true" ]; then
+  # Many module instances can run this script at the same time.
+  exec 9> "$${LOCK_FILE}"
+  flock 9
+  if command -v xpra > /dev/null 2>&1; then need_xpra=false; fi
+  if command -v openbox > /dev/null 2>&1; then need_openbox=false; fi
+  if [ "$${need_xpra}" = "true" ] || [ "$${need_openbox}" = "true" ]; then
+    install_packages
+  fi
+fi
+
+if ! command -v xpra > /dev/null 2>&1; then
+  echo "ERROR: xpra is not on PATH. Install it in the image or set install_xpra = true."
+  exit 1
+fi
+if ! command -v openbox > /dev/null 2>&1; then
+  echo "ERROR: openbox is not on PATH. Install it in the image or set install_openbox = true."
+  exit 1
+fi
+
+echo "$(xpra --version 2> /dev/null | head -n 1) and openbox are ready."
