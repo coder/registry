@@ -15,7 +15,7 @@ The multi-select workspace parameter requires Coder 2.24 or newer.
 ```tf
 module "mcp_servers" {
   source  = "registry.coder.com/coder-labs/mcp-servers/coder"
-  version = "0.0.1"
+  version = "0.0.2"
 
   agent_id = coder_agent.main.id
   clients  = ["claude code", "codex"]
@@ -33,7 +33,7 @@ For Claude Code, Codex, and Cursor, `token-env` references a workspace environme
 ```tf
 module "mcp_servers" {
   source  = "registry.coder.com/coder-labs/mcp-servers/coder"
-  version = "0.0.1"
+  version = "0.0.2"
 
   agent_id = coder_agent.main.id
   clients  = ["claude code", "codex", "cursor"]
@@ -97,7 +97,7 @@ Template authors can preselect one or both servers while still allowing users to
 ```tf
 module "mcp_servers" {
   source  = "registry.coder.com/coder-labs/mcp-servers/coder"
-  version = "0.0.1"
+  version = "0.0.2"
 
   agent_id = coder_agent.main.id
   clients  = ["gemini", "windsurf"]
