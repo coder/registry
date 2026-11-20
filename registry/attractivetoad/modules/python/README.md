@@ -15,7 +15,7 @@ Installs pyenv and uses it to build and select a configurable Python version on 
 module "python" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/attractivetoad/python/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.example.id
 }
 ```
@@ -28,7 +28,7 @@ Install and globally select a different Python version:
 module "python" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/attractivetoad/python/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.example.id
 
   python_version = "3.12.11"
@@ -41,7 +41,7 @@ Skip the package index update when your image already has a fresh apt cache:
 module "python" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/attractivetoad/python/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.example.id
 
   update_packages = false

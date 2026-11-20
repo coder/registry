@@ -13,7 +13,7 @@ Install and configure the [GitHub Copilot CLI](https://docs.github.com/copilot/c
 ```tf
 module "copilot" {
   source   = "registry.coder.com/coder-labs/copilot/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
 }
@@ -39,7 +39,7 @@ data "coder_external_auth" "github" {
 
 module "copilot" {
   source       = "registry.coder.com/coder-labs/copilot/coder"
-  version      = "1.0.0"
+  version      = "1.0.1"
   agent_id     = coder_agent.example.id
   workdir      = local.copilot_workdir
   github_token = data.coder_external_auth.github.access_token
@@ -73,7 +73,7 @@ variable "github_token" {
 
 module "copilot" {
   source       = "registry.coder.com/coder-labs/copilot/coder"
-  version      = "1.0.0"
+  version      = "1.0.1"
   agent_id     = coder_agent.example.id
   workdir      = "/home/coder/project"
   github_token = var.github_token
@@ -94,7 +94,7 @@ module "aibridge-proxy" {
 
 module "copilot" {
   source                     = "registry.coder.com/coder-labs/copilot/coder"
-  version                    = "1.0.0"
+  version                    = "1.0.1"
   agent_id                   = coder_agent.main.id
   workdir                    = "/home/coder/project"
   enable_ai_gateway          = true
@@ -110,7 +110,7 @@ Customize MCP servers, policy, and Copilot settings:
 ```tf
 module "copilot" {
   source   = "registry.coder.com/coder-labs/copilot/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
 
@@ -156,7 +156,7 @@ The module exposes the `scripts` output: an ordered list of `coder exp sync` nam
 ```tf
 module "copilot" {
   source   = "registry.coder.com/coder-labs/copilot/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.example.id
   workdir  = "/home/coder/project"
 }
