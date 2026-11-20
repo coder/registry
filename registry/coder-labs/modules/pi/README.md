@@ -15,7 +15,7 @@ The module installs and configures the CLI; starting Pi is left to a `coder_app`
 ```tf
 module "pi" {
   source            = "registry.coder.com/coder-labs/pi/coder"
-  version           = "1.0.0"
+  version           = "1.0.1"
   agent_id          = coder_agent.main.id
   enable_ai_gateway = true
 }
@@ -48,7 +48,7 @@ Pi can authenticate against a Claude Pro/Max, ChatGPT Plus/Pro, or GitHub Copilo
 ```tf
 module "pi" {
   source   = "registry.coder.com/coder-labs/pi/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
 }
 ```
@@ -74,7 +74,7 @@ variable "anthropic_api_key" {
 
 module "pi" {
   source            = "registry.coder.com/coder-labs/pi/coder"
-  version           = "1.0.0"
+  version           = "1.0.1"
   agent_id          = coder_agent.main.id
   anthropic_api_key = var.anthropic_api_key
 }
@@ -100,7 +100,7 @@ Coder then governs auth and routing centrally: developers never handle a provide
 ```tf
 module "pi" {
   source            = "registry.coder.com/coder-labs/pi/coder"
-  version           = "1.0.0"
+  version           = "1.0.1"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   enable_ai_gateway = true
@@ -122,7 +122,7 @@ Install the [`agent-firewall`](https://registry.coder.com/modules/coder/agent-fi
 ```tf
 module "pi" {
   source            = "registry.coder.com/coder-labs/pi/coder"
-  version           = "1.0.0"
+  version           = "1.0.1"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   enable_ai_gateway = true
@@ -163,7 +163,7 @@ locals {
 
 module "pi" {
   source            = "registry.coder.com/coder-labs/pi/coder"
-  version           = "1.0.0"
+  version           = "1.0.1"
   agent_id          = coder_agent.main.id
   workdir           = local.pi_workdir
   enable_ai_gateway = true
@@ -200,7 +200,7 @@ locals {
 
 module "pi" {
   source            = "registry.coder.com/coder-labs/pi/coder"
-  version           = "1.0.0"
+  version           = "1.0.1"
   agent_id          = coder_agent.main.id
   workdir           = local.pi_workdir
   enable_ai_gateway = true
@@ -242,7 +242,7 @@ Set `default_project_trust` to `"ask"` or `"never"` to change this behavior.
 ```tf
 module "pi" {
   source                = "registry.coder.com/coder-labs/pi/coder"
-  version               = "1.0.0"
+  version               = "1.0.1"
   agent_id              = coder_agent.main.id
   workdir               = "/home/coder/project"
   enable_ai_gateway     = true
@@ -265,7 +265,7 @@ Leave `workdir` unset if you only want the module to install and configure the C
 ```tf
 module "pi" {
   source   = "registry.coder.com/coder-labs/pi/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -292,7 +292,7 @@ If the binary lives somewhere else, set `pi_binary_path` to its absolute path; t
 ```tf
 module "pi" {
   source            = "registry.coder.com/coder-labs/pi/coder"
-  version           = "1.0.0"
+  version           = "1.0.1"
   agent_id          = coder_agent.main.id
   install_pi        = false
   pi_binary_path    = "/opt/pi/bin/pi"
@@ -324,7 +324,7 @@ For restricted or air-gapped workspaces:
 ```tf
 module "pi" {
   source            = "registry.coder.com/coder-labs/pi/coder"
-  version           = "1.0.0"
+  version           = "1.0.1"
   agent_id          = coder_agent.main.id
   npm_registry_url  = "https://artifacts.internal.example.com/api/npm/npm-remote/"
   enable_ai_gateway = true
@@ -343,7 +343,7 @@ Scripts that were not configured are absent from the list.
 ```tf
 module "pi" {
   source            = "registry.coder.com/coder-labs/pi/coder"
-  version           = "1.0.0"
+  version           = "1.0.1"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   enable_ai_gateway = true
