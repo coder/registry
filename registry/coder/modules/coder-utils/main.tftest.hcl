@@ -225,13 +225,6 @@ run "test_with_mock_data" {
     }
   }
 
-  override_data {
-    target = data.coder_task.me
-    values = {
-      id = "test-task-id"
-    }
-  }
-
   assert {
     condition     = coder_script.install_script.agent_id == "mock-agent"
     error_message = "Install script should use the mocked agent ID"
