@@ -1,10 +1,10 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.2"
 
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.5"
+      version = ">= 2.13"
     }
   }
 }
@@ -186,10 +186,12 @@ locals {
 }
 
 resource "coder_script" "vscode-web" {
+  count        = var.use_cli ? 0 : 1
   agent_id     = var.agent_id
   display_name = "VS Code Web"
   icon         = "/icon/code.svg"
   script = templatefile("${path.module}/run.sh", {
+    RUN_SERVER : true,
     PORT : var.port,
     LOG_PATH : var.log_path,
     INSTALL_PREFIX : var.install_prefix,
@@ -208,23 +210,6 @@ resource "coder_script" "vscode-web" {
     PLATFORM : var.platform,
   })
   run_on_start = true
-
-  lifecycle {
-    precondition {
-      condition     = !var.offline || length(var.extensions) == 0
-      error_message = "Offline mode does not allow extensions to be installed"
-    }
-
-    precondition {
-      condition     = !var.offline || !var.use_cached
-      error_message = "Offline and Use Cached can not be used together"
-    }
-
-    precondition {
-      condition     = (var.workspace == "" || var.folder == "")
-      error_message = "Set only one of `workspace` or `folder`."
-    }
-  }
 }
 
 resource "coder_app" "vscode-web" {
@@ -238,6 +223,33 @@ resource "coder_app" "vscode-web" {
   order        = var.order
   group        = var.group
   open_in      = var.open_in
+
+  lifecycle {
+    precondition {
+      condition     = !var.use_cli || var.subdomain
+      error_message = "CLI mode requires subdomain=true to isolate browser secret storage between workspaces."
+    }
+    precondition {
+      condition     = !var.use_cli || var.platform != "win32"
+      error_message = "CLI mode requires a Linux or macOS workspace and a compatible Unix server archive."
+    }
+    precondition {
+      condition     = !var.offline || (length(var.extensions) == 0 && (!var.use_cli || !var.auto_install_extensions))
+      error_message = "Offline mode does not allow extensions to be installed"
+    }
+    precondition {
+      condition     = !var.offline || !var.use_cached
+      error_message = "Offline and Use Cached can not be used together"
+    }
+    precondition {
+      condition     = var.workspace == "" || var.folder == ""
+      error_message = "Set only one of `workspace` or `folder`."
+    }
+    precondition {
+      condition     = !var.use_cli || var.commit_id == "" || can(regex("^[a-f0-9]{40}$", var.commit_id))
+      error_message = "CLI mode requires a full 40-character lowercase commit_id."
+    }
+  }
 
   healthcheck {
     url       = local.healthcheck_url
@@ -255,5 +267,5 @@ locals {
     "http://localhost:${var.port}${local.server_base_path}?folder=${urlencode(var.folder)}" :
     "http://localhost:${var.port}${local.server_base_path}"
   )
-  healthcheck_url = var.subdomain ? "http://localhost:${var.port}/version" : "http://localhost:${var.port}${local.server_base_path}/version"
+  healthcheck_url = var.use_cli ? "http://localhost:${var.port}/" : var.subdomain ? "http://localhost:${var.port}/version" : "http://localhost:${var.port}${local.server_base_path}/version"
 }
