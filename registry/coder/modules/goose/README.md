@@ -13,7 +13,7 @@ Install and configure the [Goose](https://goose-docs.ai/) agent in your workspac
 ```tf
 module "goose" {
   source         = "registry.coder.com/coder/goose/coder"
-  version        = "4.0.0"
+  version        = "4.0.1"
   agent_id       = coder_agent.main.id
   goose_provider = "anthropic"
   goose_model    = "claude-sonnet-4-6"
@@ -34,7 +34,7 @@ locals {
 
 module "goose" {
   source         = "registry.coder.com/coder/goose/coder"
-  version        = "4.0.0"
+  version        = "4.0.1"
   agent_id       = coder_agent.main.id
   workdir        = local.goose_workdir
   goose_provider = "anthropic"
@@ -69,7 +69,7 @@ Goose reads provider credentials from environment variables such as `ANTHROPIC_A
 ```tf
 module "goose" {
   source         = "registry.coder.com/coder/goose/coder"
-  version        = "4.0.0"
+  version        = "4.0.1"
   agent_id       = coder_agent.main.id
   goose_provider = "anthropic"
   goose_model    = "claude-sonnet-4-6"
@@ -93,7 +93,7 @@ module "goose" {
 ```tf
 module "goose" {
   source         = "registry.coder.com/coder/goose/coder"
-  version        = "4.0.0"
+  version        = "4.0.1"
   agent_id       = coder_agent.main.id
   goose_version  = "v1.54.0"
   goose_provider = "anthropic"
@@ -108,7 +108,7 @@ The module exposes the `scripts` output: an ordered list of `coder exp sync` nam
 ```tf
 module "goose" {
   source         = "registry.coder.com/coder/goose/coder"
-  version        = "4.0.0"
+  version        = "4.0.1"
   agent_id       = coder_agent.main.id
   goose_provider = "anthropic"
   goose_model    = "claude-sonnet-4-6"

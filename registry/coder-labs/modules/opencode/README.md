@@ -13,7 +13,7 @@ Install and configure [OpenCode 2](https://opencode.ai/v2/docs/) in your workspa
 ```tf
 module "opencode" {
   source   = "registry.coder.com/coder-labs/opencode/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
 }
 ```
@@ -32,7 +32,7 @@ locals {
 
 module "opencode" {
   source    = "registry.coder.com/coder-labs/opencode/coder"
-  version   = "1.0.0"
+  version   = "1.0.1"
   agent_id  = coder_agent.main.id
   workdir   = local.opencode_workdir
   auth_json = var.opencode_auth_json
@@ -58,7 +58,7 @@ resource "coder_app" "opencode" {
 ```tf
 module "opencode" {
   source   = "registry.coder.com/coder-labs/opencode/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
 
   base_opencode_config = <<-EOF
@@ -92,7 +92,7 @@ The module exposes the `scripts` output: an ordered list of `coder exp sync` nam
 ```tf
 module "opencode" {
   source   = "registry.coder.com/coder-labs/opencode/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
 }
 
@@ -119,7 +119,7 @@ resource "coder_script" "post_opencode" {
 ```tf
 module "opencode" {
   source    = "registry.coder.com/coder-labs/opencode/coder"
-  version   = "1.0.0"
+  version   = "1.0.1"
   agent_id  = coder_agent.main.id
   auth_json = <<-EOF
   [
