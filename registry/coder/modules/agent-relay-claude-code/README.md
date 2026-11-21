@@ -16,7 +16,7 @@ on each build and runs the Claude Code self-hosted runner.
 ```tf
 module "claude_code_runner" {
   source   = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version  = "1.0.2"
+  version  = "1.1.0"
   agent_id = coder_agent.main.id
 
   # Downloads the Claude Code CLI at start when it is not in the image. Bake
@@ -151,7 +151,7 @@ can contain spaces or quotes without escaping. Flags the module already sets
 ```tf
 module "claude_code_runner" {
   source          = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version         = "1.0.2"
+  version         = "1.1.0"
   agent_id        = coder_agent.main.id
   additional_args = ["--some-flag", "value", "--some-flag", "another value", "--another-flag"]
 }
@@ -172,6 +172,52 @@ stamps the surface the session was created from (`web_claude_ai`,
 workspace as `AGENT_RELAY_CLIENT_PLATFORM` and as the `client_platform`
 output, so a template can vary its setup by origin. A relay that predates the
 parameter leaves it empty.
+
+## Session ID
+
+The `session_id` output is the Anthropic session the workspace serves, as
+Agent Relay stamps it in `agent_relay_session_id`. It is empty on a workspace
+Agent Relay did not dispatch. A session keeps its ID across redeliveries and
+when it resumes on a fresh workspace, so a template can key saved workspace
+state on it. A template cannot declare its own `agent_relay_session_id`
+parameter to read it, because Coder rejects two parameters with the same name.
+
+To restore state before the runner takes the session, pass the ID to your own
+script through the environment and order the module after it:
+
+```tf
+resource "coder_env" "relay_session_id" {
+  agent_id = coder_agent.main.id
+  name     = "AGENT_RELAY_SESSION_ID"
+  value    = module.claude_code_runner.session_id
+}
+
+resource "coder_script" "restore" {
+  agent_id     = coder_agent.main.id
+  display_name = "Restore session state"
+  run_on_start = true
+  timeout      = 120
+  script       = <<-EOT
+    #!/bin/bash
+    set -euo pipefail
+    # Not dispatched by Agent Relay: nothing to restore.
+    [ -n "$AGENT_RELAY_SESSION_ID" ] || exit 0
+    ./restore-state.sh "$AGENT_RELAY_SESSION_ID"
+  EOT
+}
+
+data "coder_script_order" "relay_runner" {
+  rule {
+    phase = "start"
+    run   = ["module.claude_code_runner"]
+    after = ["coder_script.restore"]
+  }
+}
+```
+
+Passing the ID through the environment keeps it data rather than script text.
+See [Start the runner after your setup](#start-the-runner-after-your-setup) for
+how the ordering rule behaves.
 
 ## Scripts and logs
 
@@ -254,7 +300,7 @@ fails the start step with `failed invalid-release-idle-session-min`.
 ```tf
 module "claude_code_runner" {
   source                   = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version                  = "1.0.2"
+  version                  = "1.1.0"
   agent_id                 = coder_agent.main.id
   release_idle_session_min = 30
 }
@@ -293,7 +339,7 @@ from reaching it.
 ```tf
 module "claude_code_runner" {
   source      = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version     = "1.0.2"
+  version     = "1.1.0"
   agent_id    = coder_agent.main.id
   health_port = 3290
 }
