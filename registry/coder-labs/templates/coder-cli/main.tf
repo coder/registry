@@ -176,7 +176,7 @@ module "coder-login" {
 module "git-clone" {
   count    = data.coder_workspace.me.start_count != 0 && data.coder_parameter.git_repo_url.value != "" ? 1 : 0
   source   = "registry.coder.com/coder/git-clone/coder"
-  version  = "2.0.3"
+  version  = "2.0.5"
   agent_id = coder_agent.main.id
   url      = data.coder_parameter.git_repo_url.value
   base_dir = "/home/coder/projects"
@@ -185,7 +185,7 @@ module "git-clone" {
 module "code-server" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/code-server/coder"
-  version  = "1.5.2"
+  version  = "1.6.0"
   agent_id = coder_agent.main.id
   folder   = "/home/coder/projects"
 }

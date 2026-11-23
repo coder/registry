@@ -107,7 +107,7 @@ resource "coder_agent" "main" {
 module "git-clone" {
   source = "registry.coder.com/coder/git-clone/coder"
   # This ensures that the latest non-breaking version of the module gets downloaded, you can also pin the module version to prevent breaking changes in production.
-  version  = "~> 1.0"
+  version  = "~> 2.0"
   agent_id = local.agent_id
   url      = data.coder_parameter.git_repo.value
   base_dir = local.repo_base_dir
