@@ -185,8 +185,9 @@ parameters with the same name.
 The value is not authenticated. The dashboard shows the parameter as read-only,
 but any user who can build from the template can set it through the CLI or
 the API, for example to another user's session ID. Never use the session ID
-on its own to look up saved state: scope the state to the workspace owner as
-well, have the storage enforce that scope, and reject IDs that could leave it.
+on its own to look up saved state: scope each workspace's access to its owner
+and session, have the storage enforce that scope, and reject IDs that could
+leave it.
 
 Saving state is the template's job, and a relay workspace has no good moment
 to do it at the end. Agent Relay deletes the workspace when the runner exits,
@@ -267,19 +268,17 @@ text. The owner ID comes from Coder, not from a parameter, so the example
 scripts only ask for state under the workspace owner's ID. That is not
 isolation on its own: the scripts run in a workspace the user controls, with
 your storage credential, so the user can ask for any key that credential can
-read. Isolate users in the storage itself, for example with a credential
-issued per owner and limited to `<owner_id>/`.
+read. Isolate sessions in the storage itself, by issuing each workspace a
+credential limited to `<owner_id>/<session_id>`. A user who sets another
+user's session ID then gets a credential for their own owner ID, which holds
+nothing.
 
-A credential per owner does not isolate Claude Tag channel sessions. A Claude
-Tag channel session is one started from a Slack channel rather than from a
-person's own Claude account, and Agent Relay creates every one of them in a
-pool as the pool's single Claude Tag user. A credential per owner therefore
-gives each channel session access to every other channel session's saved
-state, and a prompt can use it, because sessions run with
-`bypassPermissions`. For workspaces owned by the Claude Tag user, either do
-not save state, or issue a credential limited to `<owner_id>/<session_id>`.
-Check the owner with `data.coder_workspace_owner.me.name`, not with
-`client_platform`, which any user can set.
+A credential scoped only to the owner is not enough. Agent Relay creates every
+Claude Tag channel session in a pool (one started from a Slack channel rather
+than from a person's own Claude account) as the same Coder user, so a
+credential per owner would give each channel session access to the others'
+saved state, and a prompt can use it because sessions run with
+`bypassPermissions`.
 
 The restore writes a marker as its last step, and the save skips any
 workspace without it, so a restore that fails or times out never overwrites
