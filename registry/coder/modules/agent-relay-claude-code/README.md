@@ -176,16 +176,38 @@ parameter leaves it empty.
 ## Session ID
 
 The `session_id` output is the Anthropic session the workspace serves, as
-Agent Relay stamps it in `agent_relay_session_id`. It is empty on a workspace
-Agent Relay did not dispatch. A session keeps its ID across redeliveries and
-when it resumes on a fresh workspace, so a template can key saved workspace
-state on it. A template cannot declare its own `agent_relay_session_id`
-parameter to read it, because Coder rejects two parameters with the same name.
+Agent Relay stamps it in `agent_relay_session_id`. Agent Relay sets it on
+every workspace it dispatches, and a session keeps its ID across redeliveries
+and when it resumes on a fresh workspace. A template cannot declare its own
+`agent_relay_session_id` parameter to read it, because Coder rejects two
+parameters with the same name.
 
-To restore state before the runner takes the session, pass the ID to your own
-script through the environment and order the module after it:
+The value is not authenticated. The dashboard shows the parameter as read-only,
+but any user who can build from the template can set it through the CLI or
+the API, for example to another user's session ID. Never use the session ID
+on its own to look up saved state: scope the state to the workspace owner as
+well, and reject IDs that could leave that scope.
+
+Saving state is the template's job, and a relay workspace has no good moment
+to do it at the end. Agent Relay deletes the workspace when the runner exits,
+including on [idle session release](#idle-session-release), relay workspaces
+have no persistent volume, and a forced stop may skip `run_on_stop` scripts.
+Save to storage outside the workspace on a schedule instead, and expect to
+lose the work done since the last save.
+
+The example below passes the owner and session IDs to your own scripts
+through the environment, saves every 5 minutes, restores before the runner
+takes the session, and orders the module after the restore:
 
 ```tf
+data "coder_workspace_owner" "me" {}
+
+resource "coder_env" "relay_owner_id" {
+  agent_id = coder_agent.main.id
+  name     = "AGENT_RELAY_OWNER_ID"
+  value    = data.coder_workspace_owner.me.id
+}
+
 resource "coder_env" "relay_session_id" {
   agent_id = coder_agent.main.id
   name     = "AGENT_RELAY_SESSION_ID"
@@ -198,11 +220,31 @@ resource "coder_script" "restore" {
   run_on_start = true
   timeout      = 120
   script       = <<-EOT
-    #!/bin/bash
+    #!/usr/bin/env bash
     set -euo pipefail
     # Not dispatched by Agent Relay: nothing to restore.
     [ -n "$AGENT_RELAY_SESSION_ID" ] || exit 0
-    ./restore-state.sh "$AGENT_RELAY_SESSION_ID"
+    case "$AGENT_RELAY_SESSION_ID" in
+      */* | *..*) echo "invalid session ID" >&2; exit 1 ;;
+    esac
+    # Must exit 0 when nothing is saved under the key yet, which is the
+    # case on the first dispatch of every session.
+    ./restore-state.sh "$AGENT_RELAY_OWNER_ID/$AGENT_RELAY_SESSION_ID"
+  EOT
+}
+
+resource "coder_script" "save" {
+  agent_id     = coder_agent.main.id
+  display_name = "Save session state"
+  cron         = "0 */5 * * * *"
+  script       = <<-EOT
+    #!/usr/bin/env bash
+    set -euo pipefail
+    [ -n "$AGENT_RELAY_SESSION_ID" ] || exit 0
+    case "$AGENT_RELAY_SESSION_ID" in
+      */* | *..*) echo "invalid session ID" >&2; exit 1 ;;
+    esac
+    ./save-state.sh "$AGENT_RELAY_OWNER_ID/$AGENT_RELAY_SESSION_ID"
   EOT
 }
 
@@ -215,9 +257,13 @@ data "coder_script_order" "relay_runner" {
 }
 ```
 
-Passing the ID through the environment keeps it data rather than script text.
-See [Start the runner after your setup](#start-the-runner-after-your-setup) for
-how the ordering rule behaves.
+Passing the IDs through the environment keeps them data rather than script
+text. The owner ID comes from Coder, not from a parameter, so a user who sets
+another user's session ID still reads and writes only under their own owner
+ID. The restore must succeed for the runner to start: with the default
+`requires = "success"`, a restore that fails on missing state fails every new
+session. See [Start the runner after your setup](#start-the-runner-after-your-setup)
+for how the ordering rule behaves and what Agent Relay does when setup fails.
 
 ## Scripts and logs
 
