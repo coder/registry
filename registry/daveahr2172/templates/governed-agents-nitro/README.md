@@ -1,12 +1,12 @@
 ---
-display_name: Agent Workspaces on EKS with Nitro Sandboxes
+display_name: AWS Nitro Sandboxes
 description: Run AI agent workspaces on Amazon EKS in Nitro Sandboxes, behind a default-deny NetworkPolicy and a host name egress proxy
 icon: ../../../../.icons/aws.svg
 verified: false
 tags: [kubernetes, aws, eks, ai, agents, sandbox, security]
 ---
 
-# Agent Workspaces on EKS with Nitro Sandboxes
+# AWS Nitro Sandboxes
 
 Run each workspace as one Pod on Amazon EKS, for AI agents that work on code. With the `isolated-sandbox` RuntimeClass, each workspace Pod runs in its own AWS Nitro Sandbox, a lightweight VM with its own kernel. A default-deny NetworkPolicy and a Squid egress proxy limit where the workspace can connect. EKS Pod Identity can give each workspace its own AWS session with no static keys.
 
@@ -27,7 +27,7 @@ The workspace container runs as UID 1000 with no Linux capabilities, no privileg
 1. **NetworkPolicy.** The workspace Pod accepts no inbound connections. It can connect out only to the Coder access URL addresses in `coder_egress_cidrs`, its own egress proxy, and the EKS Pod Identity Agent when it has an AWS identity. Your CNI must enforce NetworkPolicy, or this layer does nothing.
 2. **No DNS.** The Pod's only name server is `127.0.0.1`, so lookups fail. The template writes the access URL host name to `/etc/hosts` from `coder_host_ip`. The proxy resolves all other names.
 3. **Egress proxy.** Squid runs in a separate Pod for each workspace. It accepts only HTTPS `CONNECT` requests to port 443 for the host names in the chosen bundles. It refuses names that resolve to private or link-local addresses, does not decrypt TLS, and logs each request to its container output. Its own NetworkPolicy accepts traffic only from its workspace and allows out only public IPv4 addresses on port 443, plus DNS to the configured servers.
-4. **Policy gate.** The Coder agent waits until 3 connections in a row to the Kubernetes API server fail, each with a 1 second timeout, so one slow connection cannot open the gate. The check then runs every 5 seconds and stops the container if the API server becomes reachable. If the API server remains reachable for 60 seconds, the container exits. This is a useful signal, not proof that every network rule works.
+4. **Policy gate.** The Coder agent waits until 3 connections in a row to the Kubernetes API server fail, each with a 1 second timeout, so one slow connection cannot open the gate. The check then runs every 5 seconds and stops the container if the API server becomes reachable. If the API server remains reachable for 60 seconds, the container exits. This is a readiness check, not a security boundary: it runs as the workspace user, who can kill it, and any failed connection counts as closed, including an API server outage. Enforcement comes from the CNI.
 5. **Upstream firewall (optional).** Set `node_pool` to the `key=value` label of a node group whose subnets send traffic through a firewall that you run, such as AWS Network Firewall. Workspace and proxy Pods then select those nodes and tolerate a `NoSchedule` taint with the same key and value. The template does not create or check that firewall.
 
 The proxy Pod does not use the sandbox RuntimeClass. It runs on the node's normal container runtime as UID 31, with a read-only root filesystem and no capabilities.
@@ -64,11 +64,60 @@ The workspace page shows the runtime class, service account, IAM role, chosen bu
 
 - An EKS cluster where `isolated-sandbox` is available. EKS Auto Mode includes this RuntimeClass on Kubernetes 1.36 or later and launches sandbox-capable nodes when needed. On other node groups you install the Nitro Sandbox components yourself. See [Nitro Sandboxes on Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/sandboxing.html).
 - NetworkPolicy enforcement turned on in the cluster. On EKS Auto Mode, set `enable-network-policy-controller: "true"` in the `amazon-vpc-cni` ConfigMap. Without it, the policy gate stops the workspace agent.
+- Recommended on EKS Auto Mode: `networkPolicy: DefaultDeny` on the NodeClass of the workspace nodes. A Pod that no NetworkPolicy selects then has no traffic, so a new Pod is closed until its policy lands, and a workspace whose policy is deleted loses its egress instead of gaining it. The default, `DefaultAllow`, leaves both cases open.
 - The EKS Pod Identity Agent, if workspaces get an AWS identity.
 - A default StorageClass, or `storage_class_name`, for the home volume. `WaitForFirstConsumer` binding works best.
 - x86_64 nodes. The template sets the Coder agent architecture to `amd64`.
 
 Workspace and proxy Pods never schedule on Fargate, which does not enforce NetworkPolicy or support Pod Identity.
+
+### Enforce placement (recommended)
+
+The template puts workspace and proxy Pods on the `node_pool` nodes and the workspace Pod in the sandbox RuntimeClass, but the cluster does not require it. Anyone who can change the template, or what the provisioner deploys, can run a Pod in the namespace on other nodes or without the sandbox, and so outside any firewall you put in front of the agent nodes. To make placement mandatory, add a `ValidatingAdmissionPolicy` for the workspace namespace. This example requires every new Pod to select the agent nodes, forbids setting `spec.nodeName` directly, and requires the sandbox RuntimeClass on every Pod except the egress proxy. Replace `coder.com/pool`, `agent-egress`, and `coder-workspaces` with your `node_pool` key, value, and namespace:
+
+```yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: coder-workspace-placement
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE"]
+        resources: ["pods"]
+  validations:
+    - expression: "!has(object.spec.nodeName)"
+      message: "Pods in this namespace must not set spec.nodeName."
+    - expression: >-
+        has(object.spec.affinity) && has(object.spec.affinity.nodeAffinity) &&
+        has(object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution) &&
+        object.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms.all(t,
+          has(t.matchExpressions) && t.matchExpressions.exists(e,
+            e.key == 'coder.com/pool' && e.operator == 'In' && e.values == ['agent-egress']))
+      message: "Pods in this namespace must require the agent nodes (coder.com/pool=agent-egress)."
+    - expression: >-
+        (has(object.metadata.labels) && 'coder.com/role' in object.metadata.labels &&
+          object.metadata.labels['coder.com/role'] == 'proxy') ||
+        (has(object.spec.runtimeClassName) && object.spec.runtimeClassName == 'isolated-sandbox')
+      message: "Workspace Pods must use the isolated-sandbox RuntimeClass."
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: coder-workspace-placement
+spec:
+  policyName: coder-workspace-placement
+  validationActions: ["Warn", "Audit"]
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: coder-workspaces
+```
+
+Start with `validationActions: ["Warn", "Audit"]`, check that workspaces still start, then change it to `["Deny"]`. Any other tool that creates Pods in the namespace, such as a debugging or test Pod, must meet the same rules. The proxy is exempt from the RuntimeClass rule by its `coder.com/role=proxy` label, so a Pod that copies that label can skip the sandbox. It still has to run on the agent nodes. If you change `node_pool` or `sandbox_runtime_class`, change the policy to match, or new workspaces will not start.
 
 ### Coder connection
 
@@ -141,6 +190,20 @@ Variables you leave out of the file keep their value from the previous version. 
 
 Prebuilds need Coder Premium. By default each of the three presets keeps one prebuilt workspace running; set `prebuild_instances` to `0` to turn them off.
 
+## Stop a workspace from outside
+
+1. `coder stop <owner>/<workspace>` deletes the Pods, which ends every process and connection and keeps the home volume.
+2. To keep a running Pod for forensics, cut its network instead. With VPC CNI 1.21 or later, an Admin-tier `ClusterNetworkPolicy` that denies all traffic for Pods with a label such as `coder.com/quarantine=true` takes effect before every NetworkPolicy; label the workspace and proxy Pods to apply it. It blocks new connections only: in testing, the agent's open connection to Coder and `coder ssh` over it kept working. Stop the workspace once you have the evidence.
+3. Suspend the user, revoke their tokens, and keep the proxy, firewall, and AI Gateway logs.
+
+The template writes the proxy log only to the proxy container's stdout, so `coder stop` deletes it with the proxy Pod. Ship the proxy container logs to a log store before you rely on them, for example with a log-shipping DaemonSet on the agent nodes, owned by the platform team and outside the workspace namespace.
+
+Do not delete the workspace NetworkPolicy to stop a workspace. Without `DefaultDeny` on the node, that opens the Pod.
+
+## Firewall demo
+
+The **Firewall demo** app runs sample requests and names the result of each. Unauthenticated GitHub writes return HTTP 401, which shows only that the network let them through. With `github_external_auth_id` set to a Coder external auth provider, more rows use the workspace owner's linked GitHub credential: who am I, a branch in a repository of `github_org`, a branch in the owner's own repository, and a gist. The write requests are well formed but cannot succeed (a branch at a commit that does not exist, a gist with an empty file), so nothing is created. HTTP 403 or 404 shows the credential was denied, and the row prints GitHub's reason. HTTP 422 is reported as unclear: GitHub rejected the request as invalid, which does not show whether the credential could write. Proving a permitted write needs a real write that you clean up. Empty request bodies are not a valid test, because GitHub answers some of them with 422 before it checks permission.
+
 ## Limits
 
 - **Allowed hosts can still receive data.** Squid sees only the host name, not the path or content, and so does a firewall that filters on the TLS server name. An agent can push to any GitHub repository its credentials allow. Limit writes with scoped Git credentials and organization settings.
@@ -152,5 +215,7 @@ Prebuilds need Coder Premium. By default each of the three presets keeps one pre
 - **AWS credentials work outside your network.** Pod Identity credentials are ordinary temporary credentials. If an agent copied them to an allowed host that accepts uploads, they would work from anywhere until they expire. Add a condition to the workspace role's policy: `aws:SourceVpce` with your S3 gateway endpoint's ID for S3, or `aws:SourceIp` with your NAT gateway addresses for services reached through it. `aws:SourceVpc` and `aws:SourceVpce` are set only on requests through a VPC endpoint.
 - **HTTPS on port 443 only.** SSH, plain HTTP, and other ports do not work through the proxy. Use Git over HTTPS. IPv4 only.
 - **Fixed size in a Nitro Sandbox.** CPU and memory are set at boot. Check allocatable resources on your sandbox nodes before you change the size in `main.tf`.
+- **Disk in a Nitro Sandbox.** The workspace container has an 8 GiB ephemeral-storage limit and the proxy 256 MiB. Inside a sandbox the kubelet cannot measure disk use, so the 2 GiB `/tmp` size limit is not enforced there. The sandbox gets a disk the size of the limit instead, shared by `/` and `/tmp`, and writes past it fail with `No space left on device`. The home volume is separate.
+- **Network stops block new connections only.** A quarantine policy or a deleted NetworkPolicy leaves established connections open, including the agent's connection to Coder. Use `coder stop` to end them.
 
 The egress proxy, policy gate, and scoped token patterns are adapted from [coder-labs/kubernetes-sandboxed](../../../coder-labs/templates/kubernetes-sandboxed/) (Apache-2.0).
