@@ -49,7 +49,7 @@ variable "anthropic_api_key" {
 module "claude-code" {
   count               = data.coder_workspace.me.start_count
   source              = "registry.coder.com/coder/claude-code/coder"
-  version             = "5.5.1"
+  version             = "5.5.2"
   agent_id            = coder_agent.dev.id
   workdir             = "/home/coder/projects"
   install_claude_code = true

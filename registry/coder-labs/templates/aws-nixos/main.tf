@@ -172,7 +172,7 @@ locals {
 
 module "nix" {
   source  = "registry.coder.com/coder-labs/nix/coder"
-  version = "2.0.0"
+  version = "2.0.1"
 
   config = {
     extra-substituters        = ["https://nix-community.cachix.org"]
