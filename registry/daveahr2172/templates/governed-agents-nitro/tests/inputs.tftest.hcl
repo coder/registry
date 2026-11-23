@@ -76,6 +76,115 @@ run "nitro_workspace_with_proxy" {
     condition     = local.proxy && length(kubernetes_deployment_v1.proxy) == 1 && length(kubernetes_network_policy_v1.workspace.spec[0].egress) == 2 && contains(local.proxy_hosts, "github.com")
     error_message = "An egress profile must create a separate proxy and limit workspace egress."
   }
+  assert {
+    condition = (
+      kubernetes_deployment_v1.workspace[0].spec[0].template[0].spec[0].container[0].resources[0].limits["ephemeral-storage"] == "8Gi" &&
+      one([for v in kubernetes_deployment_v1.workspace[0].spec[0].template[0].spec[0].volume : v.empty_dir[0].size_limit if v.name == "tmp"]) == "2Gi" &&
+      kubernetes_deployment_v1.proxy[0].spec[0].template[0].spec[0].container[0].resources[0].limits["ephemeral-storage"] == "256Mi"
+    )
+    error_message = "The workspace and proxy must have ephemeral-storage limits, and /tmp a size limit."
+  }
+  assert {
+    condition     = strcontains(kubernetes_config_map_v1.demo[0].data["firewall-demo.sh"], "no GitHub external auth in this template")
+    error_message = "Without external auth, the authenticated GitHub probes must report n/a."
+  }
+}
+
+# The README's example ValidatingAdmissionPolicy admits only Pods that match
+# these fields. If this fails, update the policy in the README with the change.
+# The policy's spec.nodeName rule is not checked here: the provider computes
+# node_name, so a plan cannot read it.
+run "pods_meet_the_readme_placement_policy" {
+  command = plan
+
+  variables {
+    node_pool = "coder.com/pool=agent-egress"
+  }
+  override_data {
+    target = data.coder_workspace.me
+    values = {
+      id          = "00000000-0000-4000-8000-000000000001"
+      name        = "test"
+      access_url  = "https://203.0.113.10"
+      start_count = 1
+      transition  = "start"
+    }
+  }
+  override_data {
+    target = data.coder_parameter.profile
+    values = { value = "workspace-agents" }
+  }
+  override_data {
+    target = data.coder_parameter.egress_bundles
+    values = { value = "[\"github\"]" }
+  }
+  override_module {
+    target  = module.code-server
+    outputs = {}
+  }
+
+  assert {
+    condition = alltrue([
+      for pod in [
+        kubernetes_deployment_v1.workspace[0].spec[0].template[0].spec[0],
+        kubernetes_deployment_v1.proxy[0].spec[0].template[0].spec[0],
+        ] : alltrue([
+          for term in pod.affinity[0].node_affinity[0].required_during_scheduling_ignored_during_execution[0].node_selector_term :
+          anytrue([
+            for e in term.match_expressions :
+            e.key == "coder.com/pool" && e.operator == "In" && jsonencode(e.values) == jsonencode(["agent-egress"])
+          ])
+      ])
+    ])
+    error_message = "Every node selector term of both Pods must require coder.com/pool In [agent-egress]."
+  }
+  assert {
+    condition = (
+      kubernetes_deployment_v1.workspace[0].spec[0].template[0].spec[0].runtime_class_name == "isolated-sandbox" &&
+      kubernetes_deployment_v1.workspace[0].spec[0].template[0].metadata[0].labels["coder.com/role"] == "workspace" &&
+      kubernetes_deployment_v1.proxy[0].spec[0].template[0].metadata[0].labels["coder.com/role"] == "proxy"
+    )
+    error_message = "The workspace Pod must use isolated-sandbox, and only the proxy Pod may carry the coder.com/role=proxy exemption label."
+  }
+}
+
+run "firewall_demo_uses_the_github_credential_safely" {
+  command = plan
+
+  variables {
+    github_external_auth_id = "github"
+  }
+  override_data {
+    target = data.coder_workspace.me
+    values = {
+      id          = "00000000-0000-4000-8000-000000000001"
+      name        = "test"
+      access_url  = "https://203.0.113.10"
+      start_count = 1
+      transition  = "start"
+    }
+  }
+  override_data {
+    target = data.coder_parameter.profile
+    values = { value = "workspace-agents" }
+  }
+  override_data {
+    target = data.coder_parameter.egress_bundles
+    values = { value = "[\"github\"]" }
+  }
+  override_module {
+    target  = module.code-server
+    outputs = {}
+  }
+
+  assert {
+    condition = (
+      strcontains(kubernetes_config_map_v1.demo[0].data["firewall-demo.sh"], "GITHUB_AUTH_ID=\"github\"") &&
+      strcontains(kubernetes_config_map_v1.demo[0].data["firewall-demo.sh"], "-H @-") &&
+      strcontains(kubernetes_config_map_v1.demo[0].data["firewall-demo.sh"], "0000000000000000000000000000000000000000")
+    )
+    error_message = "The demo must pass the token on stdin and use write probes that cannot succeed."
+  }
 }
 
 run "bucket_host_needs_identity" {
