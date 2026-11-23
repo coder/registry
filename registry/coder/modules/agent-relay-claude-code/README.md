@@ -222,6 +222,7 @@ resource "coder_script" "restore" {
   script       = <<-EOT
     #!/usr/bin/env bash
     set -euo pipefail
+    rm -f "$HOME/.session-state-restored"
     # Not dispatched by Agent Relay: nothing to restore.
     [ -n "$AGENT_RELAY_SESSION_ID" ] || exit 0
     case "$AGENT_RELAY_SESSION_ID" in
@@ -230,6 +231,7 @@ resource "coder_script" "restore" {
     # Must exit 0 when nothing is saved under the key yet, which is the
     # case on the first dispatch of every session.
     ./restore-state.sh "$AGENT_RELAY_OWNER_ID/$AGENT_RELAY_SESSION_ID"
+    touch "$HOME/.session-state-restored"
   EOT
 }
 
@@ -241,6 +243,9 @@ resource "coder_script" "save" {
     #!/usr/bin/env bash
     set -euo pipefail
     [ -n "$AGENT_RELAY_SESSION_ID" ] || exit 0
+    # Cron scripts run even when the restore failed. Saving then would
+    # replace the last good copy with an unrestored workspace.
+    [ -f "$HOME/.session-state-restored" ] || exit 0
     case "$AGENT_RELAY_SESSION_ID" in
       */* | *..*) echo "invalid session ID" >&2; exit 1 ;;
     esac
@@ -260,7 +265,9 @@ data "coder_script_order" "relay_runner" {
 Passing the IDs through the environment keeps them data rather than script
 text. The owner ID comes from Coder, not from a parameter, so a user who sets
 another user's session ID still reads and writes only under their own owner
-ID. The restore must succeed for the runner to start: with the default
+ID. The restore writes a marker as its last step, and the save skips any
+workspace without it, so a restore that fails or times out never overwrites
+the saved state. The restore must succeed for the runner to start: with the default
 `requires = "success"`, a restore that fails on missing state fails every new
 session. See [Start the runner after your setup](#start-the-runner-after-your-setup)
 for how the ordering rule behaves and what Agent Relay does when setup fails.
