@@ -390,6 +390,6 @@ output "client_platform" {
 }
 
 output "session_id" {
-  description = "Anthropic session this workspace serves, as stamped by Agent Relay on dispatch. The same session keeps the same ID across redeliveries and when it resumes on a fresh workspace. Any user who can build from the template can also set it, so a template that keys saved state on it must scope that state to the workspace owner as well."
+  description = "Anthropic session this workspace serves, as stamped by Agent Relay on dispatch. The same session keeps the same ID across redeliveries and when it resumes on a fresh workspace. Any user who can build from the template can also set it, so a template that keys saved state on it must scope that state to the workspace owner, and the storage must enforce that scope, because the user controls the workspace and its credentials."
   value       = data.coder_parameter.agent_relay_session_id.value
 }

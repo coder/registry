@@ -186,7 +186,7 @@ The value is not authenticated. The dashboard shows the parameter as read-only,
 but any user who can build from the template can set it through the CLI or
 the API, for example to another user's session ID. Never use the session ID
 on its own to look up saved state: scope the state to the workspace owner as
-well, and reject IDs that could leave that scope.
+well, have the storage enforce that scope, and reject IDs that could leave it.
 
 Saving state is the template's job, and a relay workspace has no good moment
 to do it at the end. Agent Relay deletes the workspace when the runner exits,
@@ -263,14 +263,22 @@ data "coder_script_order" "relay_runner" {
 ```
 
 Passing the IDs through the environment keeps them data rather than script
-text. The owner ID comes from Coder, not from a parameter, so a user who sets
-another user's session ID still reads and writes only under their own owner
-ID. The restore writes a marker as its last step, and the save skips any
+text. The owner ID comes from Coder, not from a parameter, so the example
+scripts only ask for state under the workspace owner's ID. That is not
+isolation on its own: the scripts run in a workspace the user controls, with
+your storage credential, so the user can ask for any key that credential can
+read. Isolate users in the storage itself, for example with a credential
+issued per owner and limited to `<owner_id>/`. Agent Relay creates every
+Claude Tag channel session in a pool as the same Coder user, so those sessions
+share an owner ID and the prefix does not separate them.
+
+The restore writes a marker as its last step, and the save skips any
 workspace without it, so a restore that fails or times out never overwrites
-the saved state. The restore must succeed for the runner to start: with the default
-`requires = "success"`, a restore that fails on missing state fails every new
-session. See [Start the runner after your setup](#start-the-runner-after-your-setup)
-for how the ordering rule behaves and what Agent Relay does when setup fails.
+the saved state. The restore must succeed for the runner to start: with the
+default `requires = "success"`, a restore that fails on missing state fails
+every new session. See
+[Start the runner after your setup](#start-the-runner-after-your-setup) for
+how the ordering rule behaves and what Agent Relay does when setup fails.
 
 ## Scripts and logs
 
