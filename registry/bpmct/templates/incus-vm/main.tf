@@ -2,7 +2,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.4.0"
+      version = ">= 2.5"
     }
     incus = {
       source  = "lxc/incus"
@@ -39,11 +39,11 @@ data "coder_workspace_owner" "me" {}
 data "coder_parameter" "image" {
   name         = "image"
   display_name = "Image"
-  description  = "Base image name from images.linuxcontainers.org (e.g. `ubuntu/noble/cloud`). The template architecture is appended automatically."
+  description  = "Linux images come from images.linuxcontainers.org. Windows uses a golden image that you build on the Incus host."
   type         = "string"
   default      = "ubuntu/noble/cloud"
   icon         = "/icon/image.svg"
-  mutable      = true
+  mutable      = false
   order        = 1
 
   option {
@@ -62,6 +62,12 @@ data "coder_parameter" "image" {
     name  = "Debian 12 (Bookworm)"
     value = "debian/12/cloud"
     icon  = "/icon/debian.svg"
+  }
+
+  option {
+    name  = "Windows Server 2022"
+    value = "windows"
+    icon  = "/icon/windows.svg"
   }
 }
 
@@ -111,7 +117,11 @@ data "coder_parameter" "disk" {
 resource "coder_agent" "main" {
   count = data.coder_workspace.me.start_count
   arch  = var.arch
-  os    = "linux"
+  os    = local.is_windows ? "windows" : "linux"
+  dir   = local.is_windows ? "C:/coder" : null
+
+  # Windows boots, then downloads the agent binary.
+  connection_timeout = local.is_windows ? 600 : 120
 
   metadata {
     display_name = "CPU Usage"
@@ -132,20 +142,21 @@ resource "coder_agent" "main" {
   metadata {
     display_name = "Disk"
     key          = "2_disk"
-    script       = "coder stat disk --path /"
+    script       = local.is_windows ? "coder stat disk --path C:/" : "coder stat disk --path /"
     interval     = 60
     timeout      = 1
   }
 }
 
 module "code-server" {
-  count    = data.coder_workspace.me.start_count
+  count    = data.coder_workspace.me.start_count == 1 && !local.is_windows ? 1 : 0
   source   = "registry.coder.com/coder/code-server/coder"
   version  = "~> 1.0"
   agent_id = coder_agent.main[0].id
 }
 
 resource "incus_image" "image" {
+  count = local.is_windows ? 0 : 1
   source_image = {
     remote       = "images"
     name         = "${data.coder_parameter.image.value}/${var.arch}"
@@ -155,60 +166,73 @@ resource "incus_image" "image" {
 }
 
 resource "incus_instance" "dev" {
-  running = data.coder_workspace.me.start_count == 1
-  name    = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}"
-  image   = incus_image.image.fingerprint
+  # The provider never starts a Windows VM. null_resource.windows_stop stops
+  # it, and null_resource.windows_seed attaches the token ISO and starts it.
+  running = local.is_windows ? false : data.coder_workspace.me.start_count == 1
+  name    = local.instance_name
+  image   = local.is_windows ? var.windows_image : incus_image.image[0].fingerprint
   type    = "virtual-machine"
 
-  config = {
-    "limits.cpu"             = tostring(data.coder_parameter.cpu.value)
-    "limits.memory"          = "${data.coder_parameter.memory.value}GiB"
-    "security.secureboot"    = false
-    "boot.autostart"         = data.coder_workspace.me.start_count == 1
-    "user.coder-agent-token" = local.agent_token
+  depends_on = [null_resource.windows_seed_volume, null_resource.windows_stop]
 
-    "cloud-init.user-data" = <<-EOF
-      #cloud-config
-      hostname: ${lower(data.coder_workspace.me.name)}
-      users:
-        - name: ${local.workspace_user}
-          uid: 1000
-          groups: sudo
-          shell: /bin/bash
-          sudo: ALL=(ALL) NOPASSWD:ALL
-      write_files:
-        - path: /opt/coder/init
-          permissions: "0755"
-          encoding: b64
-          content: ${base64encode(local.agent_init_script)}
-        - path: /opt/coder/init.env
-          permissions: "0600"
-          content: |
-            CODER_AGENT_TOKEN=${local.agent_token}
-            CODER_AGENT_URL=${data.coder_workspace.me.access_url}
-        - path: /etc/systemd/system/coder-agent.service
-          permissions: "0644"
-          content: |
-            [Unit]
-            Description=Coder Agent
-            After=network-online.target
-            Wants=network-online.target
-            [Service]
-            User=${local.workspace_user}
-            EnvironmentFile=/opt/coder/init.env
-            ExecStart=/opt/coder/init
-            Restart=always
-            RestartSec=10
-            TimeoutStopSec=90
-            KillMode=process
-            OOMScoreAdjust=-900
-            SyslogIdentifier=coder-agent
-            [Install]
-            WantedBy=multi-user.target
-      runcmd:
-        - systemctl enable --now coder-agent.service
-    EOF
-  }
+  config = merge(
+    {
+      "limits.cpu"             = tostring(data.coder_parameter.cpu.value)
+      "limits.memory"          = "${data.coder_parameter.memory.value}GiB"
+      "security.secureboot"    = false
+      "boot.autostart"         = data.coder_workspace.me.start_count == 1
+      "user.coder-agent-token" = local.agent_token
+    },
+    local.is_windows ? {
+      # The golden image installs in legacy BIOS mode. On Incus 6.0 with
+      # QEMU 8.2, UEFI could not read the install disk and the default
+      # Hyper-V CPU flags stopped the Windows boot.
+      "security.csm" = true
+      "raw.qemu"     = "-cpu host"
+      } : {
+      "cloud-init.user-data" = <<-EOF
+        #cloud-config
+        hostname: ${lower(data.coder_workspace.me.name)}
+        users:
+          - name: ${local.workspace_user}
+            uid: 1000
+            groups: sudo
+            shell: /bin/bash
+            sudo: ALL=(ALL) NOPASSWD:ALL
+        write_files:
+          - path: /opt/coder/init
+            permissions: "0755"
+            encoding: b64
+            content: ${base64encode(local.agent_init_script)}
+          - path: /opt/coder/init.env
+            permissions: "0600"
+            content: |
+              CODER_AGENT_TOKEN=${local.agent_token}
+              CODER_AGENT_URL=${data.coder_workspace.me.access_url}
+          - path: /etc/systemd/system/coder-agent.service
+            permissions: "0644"
+            content: |
+              [Unit]
+              Description=Coder Agent
+              After=network-online.target
+              Wants=network-online.target
+              [Service]
+              User=${local.workspace_user}
+              EnvironmentFile=/opt/coder/init.env
+              ExecStart=/opt/coder/init
+              Restart=always
+              RestartSec=10
+              TimeoutStopSec=90
+              KillMode=process
+              OOMScoreAdjust=-900
+              SyslogIdentifier=coder-agent
+              [Install]
+              WantedBy=multi-user.target
+        runcmd:
+          - systemctl enable --now coder-agent.service
+      EOF
+    }
+  )
 
   device {
     name = "root"
@@ -216,11 +240,15 @@ resource "incus_instance" "dev" {
     properties = {
       path = "/"
       pool = var.storage_pool
-      size = "${data.coder_parameter.disk.value}GiB"
+      size = "${local.disk_size}GiB"
     }
   }
 
   lifecycle {
+    precondition {
+      condition     = !local.is_windows || var.arch == "amd64"
+      error_message = "The Windows image needs an amd64 Incus host."
+    }
     ignore_changes = [
       config["cloud-init.user-data"],
       config["user.coder-agent-token"],
@@ -230,7 +258,7 @@ resource "incus_instance" "dev" {
 }
 
 resource "null_resource" "token_refresh" {
-  count = data.coder_workspace.me.start_count
+  count = data.coder_workspace.me.start_count == 1 && !local.is_windows ? 1 : 0
 
   triggers = {
     agent_token = local.agent_token
@@ -273,7 +301,7 @@ resource "coder_metadata" "info" {
   }
   item {
     key   = "image"
-    value = "images:${data.coder_parameter.image.value}/${var.arch}"
+    value = local.is_windows ? var.windows_image : "images:${data.coder_parameter.image.value}/${var.arch}"
   }
   item {
     key   = "storage_pool"
@@ -293,12 +321,17 @@ resource "coder_metadata" "info" {
   }
   item {
     key   = "disk"
-    value = "${data.coder_parameter.disk.value} GiB"
+    value = "${local.disk_size} GiB"
   }
 }
 
 locals {
-  workspace_user    = lower(data.coder_workspace_owner.me.name)
+  workspace_user = lower(data.coder_workspace_owner.me.name)
+  instance_name  = "coder-${lower(data.coder_workspace_owner.me.name)}-${lower(data.coder_workspace.me.name)}"
+  seed_volume    = "coder-init-${local.instance_name}"
+  is_windows     = data.coder_parameter.image.value == "windows"
+  # The Windows golden image has a 60 GiB partition. Incus cannot shrink a root disk.
+  disk_size         = local.is_windows ? max(data.coder_parameter.disk.value, 60) : data.coder_parameter.disk.value
   agent_token       = data.coder_workspace.me.start_count == 1 ? coder_agent.main[0].token : ""
   agent_init_script = data.coder_workspace.me.start_count == 1 ? coder_agent.main[0].init_script : ""
 }
