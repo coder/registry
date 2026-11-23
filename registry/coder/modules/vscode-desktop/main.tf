@@ -49,9 +49,40 @@ variable "extensions" {
   }
 }
 
+variable "settings" {
+  type        = any
+  description = "A map of settings to apply to VS Code Desktop's Machine settings. These settings are merged with any existing machine settings on startup."
+  default     = {}
+}
+
+variable "settings_file" {
+  type        = string
+  description = "Path to the settings.json file on the remote workspace host."
+  default     = "$HOME/.vscode-server/data/Machine/settings.json"
+}
+
 locals {
   module_directory = "$HOME/.coder-modules/coder/vscode-desktop"
   server_directory = "${local.module_directory}/server"
+  has_settings     = var.settings != null && var.settings != {}
+}
+
+resource "coder_script" "apply_settings" {
+  count              = local.has_settings ? 1 : 0
+  agent_id           = var.agent_id
+  display_name       = "VS Code Desktop Settings"
+  icon               = "/icon/code.svg"
+  run_on_start       = true
+  start_blocks_login = true
+  timeout            = 300
+  script = templatefile(
+    "${path.module}/scripts/apply-settings.sh.tftpl",
+    {
+      SETTINGS_B64      = base64encode(jsonencode(var.settings))
+      SETTINGS_FILE_B64 = base64encode(var.settings_file)
+      SCRIPTS_DIR       = "${path.module}/scripts"
+    },
+  )
 }
 
 module "vscode-desktop-core" {
