@@ -1,14 +1,12 @@
 name: deploy-registry
 
 on:
+  # Module releases: tag-release.yaml calls this once after it pushes all of a run's tags.
+  workflow_call:
   schedule:
     # Runs at 02:30 UTC Monday through Friday
     - cron: "30 2 * * 1-5"
   push:
-    tags:
-      # Matches release/<namespace>/<resource_name>/<semantic_version>
-      # (e.g., "release/whizus/exoscale-zone/v1.0.13")
-      - "release/*/*/v*.*.*"
     branches: # Templates and skills get released when merged to main
       - main
     paths:
@@ -23,6 +21,11 @@ jobs:
     runs-on: ubuntu-latest
     # Builds usually take about 6 minutes; the job waits for both to finish.
     timeout-minutes: 30
+    # Each deploy builds the latest main and production, so a queued run supersedes older queued
+    # ones, and a running deploy is never cancelled.
+    concurrency:
+      group: deploy-registry
+      cancel-in-progress: false
     # GCP trusts only this environment, which accepts main and release tags.
     environment: deploy
 
