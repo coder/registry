@@ -260,10 +260,22 @@ function authenticate_codex() {
 }
 
 function check_sandbox_prerequisites() {
-  if [ "$(uname -s)" = "Linux" ] && ! command_exists bwrap; then
+  if [ "$(uname -s)" != "Linux" ]; then
+    return
+  fi
+  if ! command_exists bwrap; then
     echo "Warning: Linux sandbox prerequisite bubblewrap (bwrap) was not found on PATH." >&2
     echo "Install the distribution's bubblewrap package in the workspace image or template. Codex's bundled fallback requires unprivileged user namespaces." >&2
     echo "See https://developers.openai.com/codex/concepts/sandboxing#prerequisites for OS-specific setup, including Ubuntu 24.04 AppArmor profiles." >&2
+    return
+  fi
+
+  local sandbox_error
+  if ! sandbox_error=$(bwrap --unshare-user --ro-bind / / true 2>&1); then
+    echo "Warning: bubblewrap is installed but cannot create a user namespace and read-only mount." >&2
+    printf '%s\n' "$${sandbox_error}" >&2
+    echo "The workspace administrator must check container seccomp/AppArmor policies and host user namespace restrictions. Installing bubblewrap alone does not grant these permissions." >&2
+    echo "See https://github.com/coder/registry/tree/main/registry/coder-labs/modules/codex/examples/docker-sandbox for a container configuration example. The module does not change security policies." >&2
   fi
 }
 
