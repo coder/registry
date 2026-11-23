@@ -222,7 +222,7 @@ resource "coder_script" "restore" {
   script       = <<-EOT
     #!/usr/bin/env bash
     set -euo pipefail
-    rm -f "$HOME/.session-state-restored"
+    rm -f /tmp/session-state-restored
     # Not dispatched by Agent Relay: nothing to restore.
     [ -n "$AGENT_RELAY_SESSION_ID" ] || exit 0
     case "$AGENT_RELAY_SESSION_ID" in
@@ -231,7 +231,7 @@ resource "coder_script" "restore" {
     # Must exit 0 when nothing is saved under the key yet, which is the
     # case on the first dispatch of every session.
     ./restore-state.sh "$AGENT_RELAY_OWNER_ID/$AGENT_RELAY_SESSION_ID"
-    touch "$HOME/.session-state-restored"
+    touch /tmp/session-state-restored
   EOT
 }
 
@@ -245,7 +245,7 @@ resource "coder_script" "save" {
     [ -n "$AGENT_RELAY_SESSION_ID" ] || exit 0
     # Cron scripts run even when the restore failed. Saving then would
     # replace the last good copy with an unrestored workspace.
-    [ -f "$HOME/.session-state-restored" ] || exit 0
+    [ -f /tmp/session-state-restored ] || exit 0
     case "$AGENT_RELAY_SESSION_ID" in
       */* | *..*) echo "invalid session ID" >&2; exit 1 ;;
     esac
@@ -268,13 +268,25 @@ scripts only ask for state under the workspace owner's ID. That is not
 isolation on its own: the scripts run in a workspace the user controls, with
 your storage credential, so the user can ask for any key that credential can
 read. Isolate users in the storage itself, for example with a credential
-issued per owner and limited to `<owner_id>/`. Agent Relay creates every
-Claude Tag channel session in a pool as the same Coder user, so those sessions
-share an owner ID and the prefix does not separate them.
+issued per owner and limited to `<owner_id>/`.
+
+A credential per owner does not isolate Claude Tag channel sessions. A Claude
+Tag channel session is one started from a Slack channel rather than from a
+person's own Claude account, and Agent Relay creates every one of them in a
+pool as the pool's single Claude Tag user. A credential per owner therefore
+gives each channel session access to every other channel session's saved
+state, and a prompt can use it, because sessions run with
+`bypassPermissions`. For workspaces owned by the Claude Tag user, either do
+not save state, or issue a credential limited to `<owner_id>/<session_id>`.
+Check the owner with `data.coder_workspace_owner.me.name`, not with
+`client_platform`, which any user can set.
 
 The restore writes a marker as its last step, and the save skips any
 workspace without it, so a restore that fails or times out never overwrites
-the saved state. The restore must succeed for the runner to start: with the
+the saved state. The marker is in `/tmp` so that a save of the home directory
+never includes it; keep it outside whatever your save covers, or a restored
+copy of the marker would let the save run after a failed restore. The restore
+must succeed for the runner to start: with the
 default `requires = "success"`, a restore that fails on missing state fails
 every new session. See
 [Start the runner after your setup](#start-the-runner-after-your-setup) for
