@@ -388,3 +388,8 @@ output "client_platform" {
   description = "Surface the session was created from (web_claude_ai, claude_in_slack, ...), or empty when the relay predates the parameter or the workspace was created manually."
   value       = data.coder_parameter.agent_relay_client_platform.value
 }
+
+output "session_id" {
+  description = "Anthropic session this workspace serves, as stamped by Agent Relay on dispatch. The same session keeps the same ID across redeliveries and when it resumes on a fresh workspace. Any user who can build from the template can also set it, so a template that keys saved state on it must limit each workspace's access to its owner and session, and the storage must enforce that limit, because the user controls the workspace and its credentials."
+  value       = data.coder_parameter.agent_relay_session_id.value
+}

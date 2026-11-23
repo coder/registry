@@ -153,6 +153,11 @@ run "runner_wiring" {
     condition     = output.dispatched == false
     error_message = "a build with no delivery was not dispatched by Agent Relay"
   }
+
+  assert {
+    condition     = output.session_id == ""
+    error_message = "a workspace Agent Relay did not dispatch has no session id"
+  }
 }
 
 run "dispatched_true_when_delivery_stamped" {
@@ -172,6 +177,24 @@ run "dispatched_true_when_delivery_stamped" {
   assert {
     condition     = output.dispatched == true
     error_message = "a build carrying a delivery id belongs to a workspace Agent Relay created"
+  }
+}
+
+run "session_id_output_when_stamped" {
+  command = plan
+
+  # Templates read the session id from this output; they cannot declare a
+  # second agent_relay_session_id parameter of their own.
+  override_data {
+    target = data.coder_parameter.agent_relay_session_id
+    values = {
+      value = "3f1c2b7a-session"
+    }
+  }
+
+  assert {
+    condition     = output.session_id == "3f1c2b7a-session"
+    error_message = "the session_id output must re-export the stamped agent_relay_session_id parameter"
   }
 }
 

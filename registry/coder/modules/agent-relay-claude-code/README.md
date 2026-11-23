@@ -16,7 +16,7 @@ on each build and runs the Claude Code self-hosted runner.
 ```tf
 module "claude_code_runner" {
   source   = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version  = "1.0.2"
+  version  = "1.1.0"
   agent_id = coder_agent.main.id
 
   # Downloads the Claude Code CLI at start when it is not in the image. Bake
@@ -151,7 +151,7 @@ can contain spaces or quotes without escaping. Flags the module already sets
 ```tf
 module "claude_code_runner" {
   source          = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version         = "1.0.2"
+  version         = "1.1.0"
   agent_id        = coder_agent.main.id
   additional_args = ["--some-flag", "value", "--some-flag", "another value", "--another-flag"]
 }
@@ -172,6 +172,124 @@ stamps the surface the session was created from (`web_claude_ai`,
 workspace as `AGENT_RELAY_CLIENT_PLATFORM` and as the `client_platform`
 output, so a template can vary its setup by origin. A relay that predates the
 parameter leaves it empty.
+
+## Session ID
+
+The `session_id` output is the Anthropic session the workspace serves, as
+Agent Relay stamps it in `agent_relay_session_id`. Agent Relay sets it on
+every workspace it dispatches, and a session keeps its ID across redeliveries
+and when it resumes on a fresh workspace. A template cannot declare its own
+`agent_relay_session_id` parameter to read it, because Coder rejects two
+parameters with the same name.
+
+The value is not authenticated. The dashboard shows the parameter as read-only,
+but any user who can build from the template can set it through the CLI or
+the API, for example to another user's session ID. Never use the session ID
+on its own to look up saved state: scope each workspace's access to its owner
+and session, have the storage enforce that scope, and reject IDs that could
+leave it.
+
+Saving state is the template's job, and a relay workspace has no good moment
+to do it at the end. Agent Relay deletes the workspace when the runner exits,
+including on [idle session release](#idle-session-release), relay workspaces
+have no persistent volume, and a forced stop may skip `run_on_stop` scripts.
+Save to storage outside the workspace on a schedule instead, and expect to
+lose the work done since the last save.
+
+The example below passes the owner and session IDs to your own scripts
+through the environment, saves every 5 minutes, restores before the runner
+takes the session, and orders the module after the restore:
+
+```tf
+data "coder_workspace_owner" "me" {}
+
+resource "coder_env" "relay_owner_id" {
+  agent_id = coder_agent.main.id
+  name     = "AGENT_RELAY_OWNER_ID"
+  value    = data.coder_workspace_owner.me.id
+}
+
+resource "coder_env" "relay_session_id" {
+  agent_id = coder_agent.main.id
+  name     = "AGENT_RELAY_SESSION_ID"
+  value    = module.claude_code_runner.session_id
+}
+
+resource "coder_script" "restore" {
+  agent_id     = coder_agent.main.id
+  display_name = "Restore session state"
+  run_on_start = true
+  timeout      = 120
+  script       = <<-EOT
+    #!/usr/bin/env bash
+    set -euo pipefail
+    rm -f /tmp/session-state-restored
+    # Not dispatched by Agent Relay: nothing to restore.
+    [ -n "$AGENT_RELAY_SESSION_ID" ] || exit 0
+    case "$AGENT_RELAY_SESSION_ID" in
+      */* | *..*) echo "invalid session ID" >&2; exit 1 ;;
+    esac
+    # Must exit 0 when nothing is saved under the key yet, which is the
+    # case on the first dispatch of every session.
+    ./restore-state.sh "$AGENT_RELAY_OWNER_ID/$AGENT_RELAY_SESSION_ID"
+    touch /tmp/session-state-restored
+  EOT
+}
+
+resource "coder_script" "save" {
+  agent_id     = coder_agent.main.id
+  display_name = "Save session state"
+  cron         = "0 */5 * * * *"
+  script       = <<-EOT
+    #!/usr/bin/env bash
+    set -euo pipefail
+    [ -n "$AGENT_RELAY_SESSION_ID" ] || exit 0
+    # Cron scripts run even when the restore failed. Saving then would
+    # replace the last good copy with an unrestored workspace.
+    [ -f /tmp/session-state-restored ] || exit 0
+    case "$AGENT_RELAY_SESSION_ID" in
+      */* | *..*) echo "invalid session ID" >&2; exit 1 ;;
+    esac
+    ./save-state.sh "$AGENT_RELAY_OWNER_ID/$AGENT_RELAY_SESSION_ID"
+  EOT
+}
+
+data "coder_script_order" "relay_runner" {
+  rule {
+    phase = "start"
+    run   = ["module.claude_code_runner"]
+    after = ["coder_script.restore"]
+  }
+}
+```
+
+Passing the IDs through the environment keeps them data rather than script
+text. The owner ID comes from Coder, not from a parameter, so the example
+scripts only ask for state under the workspace owner's ID. That is not
+isolation on its own: the scripts run in a workspace the user controls, with
+your storage credential, so the user can ask for any key that credential can
+read. Isolate sessions in the storage itself, by issuing each workspace a
+credential limited to `<owner_id>/<session_id>`. A user who sets another
+user's session ID then gets a credential for their own owner ID, which holds
+nothing.
+
+A credential scoped only to the owner is not enough. Agent Relay creates every
+Claude Tag channel session in a pool (one started from a Slack channel rather
+than from a person's own Claude account) as the same Coder user, so a
+credential per owner would give each channel session access to the others'
+saved state, and a prompt can use it because sessions run with
+`bypassPermissions`.
+
+The restore writes a marker as its last step, and the save skips any
+workspace without it, so a restore that fails or times out never overwrites
+the saved state. The marker is in `/tmp` so that a save of the home directory
+never includes it; keep it outside whatever your save covers, or a restored
+copy of the marker would let the save run after a failed restore. The restore
+must succeed for the runner to start: with the
+default `requires = "success"`, a restore that fails on missing state fails
+every new session. See
+[Start the runner after your setup](#start-the-runner-after-your-setup) for
+how the ordering rule behaves and what Agent Relay does when setup fails.
 
 ## Scripts and logs
 
@@ -254,7 +372,7 @@ fails the start step with `failed invalid-release-idle-session-min`.
 ```tf
 module "claude_code_runner" {
   source                   = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version                  = "1.0.2"
+  version                  = "1.1.0"
   agent_id                 = coder_agent.main.id
   release_idle_session_min = 30
 }
@@ -293,7 +411,7 @@ from reaching it.
 ```tf
 module "claude_code_runner" {
   source      = "registry.coder.com/coder/agent-relay-claude-code/coder"
-  version     = "1.0.2"
+  version     = "1.1.0"
   agent_id    = coder_agent.main.id
   health_port = 3290
 }
