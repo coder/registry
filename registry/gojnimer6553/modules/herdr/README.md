@@ -162,6 +162,33 @@ module "herdr" {
 }
 ```
 
+### Keep the workspace running while agents work
+
+Agents in Herdr's detached `tmux` session open no IDE, SSH, or web terminal connection, so Coder doesn't count their work as activity and autostop can stop the workspace mid-task. Use `post_start_script` to start a loop that runs a keep-alive helper while any agent Herdr tracks is working:
+
+```tf
+module "herdr" {
+  count    = data.coder_workspace.me.start_count
+  source   = "registry.coder.com/gojnimer6553/herdr/coder"
+  version  = "1.0.0"
+  agent_id = coder_agent.main.id
+
+  post_start_script = <<-EOT
+    #!/usr/bin/env bash
+    # While any agent in Herdr is working, keep the workspace running.
+    nohup flock -n "$HOME/.config/coder-keepalive.lock" bash -c '
+      while true; do
+        if herdr agent list 2> /dev/null | grep -q "\"agent_status\":\"working\""; then
+          "$HOME/.local/bin/coder-keepalive"
+        fi
+        sleep 60
+      done' > /dev/null 2>&1 &
+  EOT
+}
+```
+
+The `coder-keepalive` helper and the scoped token it uses come from a `coder_script` in the template. Refer to [Keep coding agents running](https://coder.com/docs/workspaces/workspace-scheduling#keep-coding-agents-running) for the script.
+
 ### Skip installation and use a pre-baked image
 
 ```tf

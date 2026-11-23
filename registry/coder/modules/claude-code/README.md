@@ -76,6 +76,29 @@ resource "coder_app" "claude" {
 > [!NOTE]
 > `coder_app.command` runs when the user clicks the app tile. Combine with `anthropic_api_key`, `claude_code_oauth_token`, or `enable_ai_gateway = true` on the module to pre-authenticate the CLI.
 
+### Keep the workspace running while Claude works
+
+Claude Code in a detached `tmux` session or under `nohup` opens no IDE, SSH, or web terminal connection, so Coder doesn't count its work as activity and autostop can stop the workspace mid-task. Register Claude Code hooks through `managed_settings` that run a keep-alive helper on each prompt and tool call:
+
+```tf
+module "claude-code" {
+  source            = "registry.coder.com/coder/claude-code/coder"
+  version           = "5.5.2"
+  agent_id          = coder_agent.main.id
+  anthropic_api_key = "xxxx-xxxxx-xxxx"
+
+  managed_settings = {
+    hooks = {
+      for event in ["UserPromptSubmit", "PreToolUse", "PostToolUse"] : event => [{
+        hooks = [{ type = "command", command = "cat > /dev/null; $HOME/.local/bin/coder-keepalive" }]
+      }]
+    }
+  }
+}
+```
+
+The `coder-keepalive` helper and the scoped token it uses come from a `coder_script` in the template. Refer to [Keep coding agents running](https://coder.com/docs/workspaces/workspace-scheduling#keep-coding-agents-running) for the script.
+
 ### Usage with AI Gateway
 
 [AI Gateway](https://coder.com/docs/ai-coder/ai-gateway) is a Premium Coder feature that provides centralized LLM proxy management. Requires Coder >= 2.30.0.
