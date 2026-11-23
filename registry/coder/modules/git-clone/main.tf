@@ -56,8 +56,26 @@ variable "folder_name" {
   default     = ""
 }
 
+variable "additional_args" {
+  description = "Additional arguments to pass to `git clone`, one list element per argument, in order (e.g. `[\"--depth\", \"1\", \"--recurse-submodules\", \"-c\", \"http.extraHeader=X-A: 1\", \"-c\", \"http.extraHeader=X-B: 2\"]`). Each element is passed as written, so a flag can repeat and a value may contain spaces."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for a in var.additional_args : a != "" && !can(regex("\n", a))])
+    error_message = "additional_args elements must be non-empty and must not contain newlines."
+  }
+
+  # The module already sets the branch from branch_name or the URL. Keep this
+  # list in sync with the `git clone` flags in run.sh.
+  validation {
+    condition     = !anytrue([for a in var.additional_args : contains(["-b", "--branch"], split("=", a)[0])])
+    error_message = "additional_args must not set -b or --branch; use branch_name instead."
+  }
+}
+
 variable "extra_args" {
-  description = "Extra arguments to pass to `git clone`, one element per argument (e.g. `[\"--recurse-submodules\", \"--jobs=8\", \"--filter=blob:none\"]`)."
+  description = "Deprecated: use `additional_args` instead, which takes the same list. Still honored and appended after `additional_args`."
   type        = list(string)
   default     = []
 }
@@ -99,7 +117,7 @@ locals {
   encoded_post_clone_script = var.post_clone_script != null ? base64encode(var.post_clone_script) : ""
   # Encode the pre_clone_script for passing to the shell script
   encoded_pre_clone_script = var.pre_clone_script != null ? base64encode(var.pre_clone_script) : ""
-  encoded_extra_args       = base64encode(join("\n", var.extra_args))
+  encoded_extra_args       = base64encode(join("\n", concat(var.additional_args, var.extra_args)))
 
   # Module directory paths (matches coder-utils convention)
   # Use folder_name so two git-clone instances in the same template get
