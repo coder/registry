@@ -86,7 +86,9 @@ data "coder_workspace_preset" "default" {
     cd $HOME/projects
 
     # Packages: Install additional packages
-    sudo apt-get update && sudo apt-get install -y tmux
+    # A broken third-party repository must not prevent installing Ubuntu packages.
+    sudo apt-get update || echo "Warning: apt-get update failed; attempting tmux installation with available package indexes." >&2
+    sudo apt-get install -y tmux || exit $?
     if ! command -v google-chrome >/dev/null 2>&1; then
       yes | npx playwright install chrome
     fi
