@@ -16,7 +16,7 @@ Designed to compose with the [`coder/git-clone`](https://registry.coder.com/modu
 module "mise_install" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/droopy4096/mise-install/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
   repo_dir = module.git_clone[count.index].repo_dir
 }
@@ -40,7 +40,7 @@ module "git_clone" {
 module "mise_install" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/droopy4096/mise-install/coder"
-  version  = "1.0.0"
+  version  = "1.0.1"
   agent_id = coder_agent.main.id
   repo_dir = module.git_clone[count.index].repo_dir
 }
@@ -54,7 +54,7 @@ Use this when the workspace image already activates `mise` globally, or the repo
 module "mise_install" {
   count           = data.coder_workspace.me.start_count
   source          = "registry.coder.com/droopy4096/mise-install/coder"
-  version         = "1.0.0"
+  version         = "1.0.1"
   agent_id        = coder_agent.main.id
   repo_dir        = module.git_clone[count.index].repo_dir
   activate_shells = []
@@ -68,7 +68,7 @@ module "mise_install" {
 module "mise_install" {
   count       = data.coder_workspace.me.start_count
   source      = "registry.coder.com/droopy4096/mise-install/coder"
-  version     = "1.0.0"
+  version     = "1.0.1"
   agent_id    = coder_agent.main.id
   repo_dir    = module.git_clone[count.index].repo_dir
   install_dir = "$HOME/.mise/bin"
@@ -85,7 +85,7 @@ Point the installer at an internal mirror, pin the release, and skip the downloa
 module "mise_install" {
   count        = data.coder_workspace.me.start_count
   source       = "registry.coder.com/droopy4096/mise-install/coder"
-  version      = "1.0.0"
+  version      = "1.0.1"
   agent_id     = coder_agent.main.id
   repo_dir     = module.git_clone[count.index].repo_dir
   install_url  = "https://artifacts.internal.example.com/mise/install.sh"
@@ -96,7 +96,7 @@ module "mise_install" {
 module "mise_install_byo" {
   count        = data.coder_workspace.me.start_count
   source       = "registry.coder.com/droopy4096/mise-install/coder"
-  version      = "1.0.0"
+  version      = "1.0.1"
   agent_id     = coder_agent.main.id
   repo_dir     = module.git_clone[count.index].repo_dir
   install_mise = false
@@ -132,7 +132,7 @@ Coder starts every `coder_script` on an agent in parallel, so this module's post
 module "mise_install" {
   count        = data.coder_workspace.me.start_count
   source       = "registry.coder.com/droopy4096/mise-install/coder"
-  version      = "1.0.0"
+  version      = "1.0.1"
   agent_id     = coder_agent.main.id
   repo_dir     = module.git_clone[count.index].repo_dir
   wait_seconds = 900 # wait up to 15 minutes for large clones
