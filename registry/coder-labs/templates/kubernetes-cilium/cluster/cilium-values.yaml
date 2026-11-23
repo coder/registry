@@ -1,0 +1,53 @@
+# Cilium in AWS VPC CNI chaining mode, only on nodes with the label
+# coder.com/pool=cilium. VPC CNI still gives Pods their IP addresses and
+# routes. Cilium adds its eBPF policy on top. Pods on other nodes keep VPC
+# CNI and its NetworkPolicy agent. See README.md in this directory.
+
+cni:
+  chainingMode: aws-cni
+  # Keep the VPC CNI config file. Cilium adds its own file next to it.
+  exclusive: false
+  uninstall: false
+
+routingMode: native
+enableIPv4Masquerade: false
+endpointRoutes:
+  enabled: true
+# kube-proxy stays on every node.
+kubeProxyReplacement: "false"
+
+# Cilium still gives each node a small range for its own router address.
+# The default pool, 10.0.0.0/8, can overlap the service CIDR, such as the
+# EKS default 10.100.0.0/16. Use a range that nothing in the VPC routes to.
+ipam:
+  mode: cluster-pool
+  operator:
+    clusterPoolIPv4PodCIDRList:
+      - 10.250.0.0/16
+    clusterPoolIPv4MaskSize: 24
+
+# Every Cilium component runs only on the Cilium nodes.
+nodeSelector:
+  coder.com/pool: cilium
+envoy:
+  nodeSelector:
+    coder.com/pool: cilium
+operator:
+  replicas: 1
+  nodeSelector:
+    coder.com/pool: cilium
+  tolerations:
+    - operator: Exists
+  # The default deletes every Pod that Cilium does not manage, and that is
+  # every Pod on the other nodes, CoreDNS included.
+  unmanagedPodWatcher:
+    restart: false
+
+# Flow logs. Read them with
+#   kubectl -n kube-system exec ds/cilium -c cilium-agent -- hubble observe
+hubble:
+  enabled: true
+  relay:
+    enabled: false
+  ui:
+    enabled: false
