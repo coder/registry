@@ -1,0 +1,8 @@
+# Lets coder-bridge manage actors in the coder atespace. Create it with
+#   kubectl ate create access-policy -a coder -f access-policy.yaml
+metadata:
+  name: default
+bindings:
+  - role: editor
+    members:
+      - user:system:serviceaccount:coder-bridge:bridge

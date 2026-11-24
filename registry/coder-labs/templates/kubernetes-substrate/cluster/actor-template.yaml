@@ -1,0 +1,37 @@
+# ActorTemplate for Coder workspaces. Create it with
+#   kubectl ate create actor-template -f actor-template.yaml
+# Substrate boots one golden actor from it and snapshots it, memory
+# included. Every workspace actor starts from that snapshot. coder-boot is
+# already running in it and waiting for a token, so the token is never in
+# the snapshot.
+metadata:
+  atespace: coder
+  name: coder-workspace
+workerSelector:
+  matchLabels:
+    workload: coder-microvm
+containers:
+  - name: workspace
+    image: WORKSPACE_IMAGE
+    command: ["/usr/local/bin/coder-boot"]
+    # Substrate starts the container as root, without the capabilities to
+    # change user, and the microVM shows image files as owned by root.
+    # coder-boot needs these to give /home/coder to uid 1000 and to run the
+    # agent as that user. The agent gets no capabilities.
+    securityContext:
+      capabilities:
+        add: ["CHOWN", "SETUID", "SETGID"]
+    env:
+      - { name: HOME, value: /home/coder }
+      - { name: USER, value: coder }
+    wakeupProbe:
+      httpGet:
+        path: /readyz
+        port: 8080
+      timeoutSeconds: 300
+resources:
+  limits:
+    cpuMillicores: 2000
+    memoryBytes: 4294967296 # 4Gi
+snapshotConfig:
+  preferredFidelity: SNAPSHOT_FIDELITY_MEMORY

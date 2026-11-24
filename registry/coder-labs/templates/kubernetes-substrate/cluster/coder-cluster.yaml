@@ -1,0 +1,71 @@
+# The Coder cluster side of the kubernetes-substrate template. Coder's provisioner
+# writes one ConfigMap per workspace and one agent Secret per started
+# workspace. coder-bridge, in the Substrate cluster, reads them with a
+# read-only token.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: coder-substrate
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-substrate-workspaces
+  namespace: coder-substrate
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-substrate-workspaces
+  namespace: coder-substrate
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: coder-substrate-workspaces
+subjects:
+  - kind: ServiceAccount
+    name: coder
+    namespace: coder
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: coder-bridge
+  namespace: coder-substrate
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-bridge-read
+  namespace: coder-substrate
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-bridge-read
+  namespace: coder-substrate
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: coder-bridge-read
+subjects:
+  - kind: ServiceAccount
+    name: coder-bridge
+    namespace: coder-substrate
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: coder-bridge-token
+  namespace: coder-substrate
+  annotations:
+    kubernetes.io/service-account.name: coder-bridge
+type: kubernetes.io/service-account-token
