@@ -13,7 +13,7 @@ Install and configure the [Claude Code](https://docs.anthropic.com/en/docs/agent
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.5.3"
+  version           = "5.5.4"
   agent_id          = coder_agent.main.id
   anthropic_api_key = "xxxx-xxxxx-xxxx"
 }
@@ -35,6 +35,64 @@ Provide exactly one authentication method:
 - **Microsoft Foundry**: set `use_foundry = true` and provide either `foundry_resource` or `foundry_base_url`. Authentication uses the Azure default credential chain unless a Foundry API key or bearer token is provided separately. See [Usage with Microsoft Foundry](#usage-with-microsoft-foundry).
 - **Custom API gateway**: set `anthropic_base_url` to a self-hosted gateway that speaks the Anthropic Messages API. See [Usage with a custom API gateway](#usage-with-a-custom-api-gateway).
 
+### Linux sandbox prerequisites
+
+To use Claude Code's sandbox on Linux, install `bubblewrap` and `socat` in the
+workspace image or template. The module does not install these system packages,
+enable the sandbox, or change host security settings. See the
+[Claude Code sandboxing documentation](https://code.claude.com/docs/en/sandboxing).
+
+#### Ubuntu 24.04 AppArmor profile
+
+With `kernel.apparmor_restrict_unprivileged_userns=1`, the distribution's
+`/usr/bin/bwrap` needs an AppArmor profile that permits user namespaces.
+Without one, sandbox startup can fail with
+`bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`.
+
+Ubuntu's `bwrap-userns-restrict` profile puts child processes under
+`unpriv_bwrap`, which denies the capabilities needed by Claude Code's nested
+user namespace. This causes
+`apply-seccomp: write /proc/self/setgroups (nested userns is capability-restricted; caller must provide CAP_SYS_ADMIN)`.
+Setting the sysctl to `0` does not remove those loaded profile restrictions.
+
+A workspace or host administrator can use the
+[profile recommended by Claude Code](https://code.claude.com/docs/en/sandboxing#add-an-apparmor-profile-for-bubblewrap)
+below for both Claude Code and Codex. First, if `bwrap-userns-restrict` was
+enabled at `/etc/apparmor.d/bwrap-userns-restrict`, disable it on future reloads
+and unload it:
+
+```bash
+sudo mkdir -p /etc/apparmor.d/disable
+sudo ln -sf /etc/apparmor.d/bwrap-userns-restrict /etc/apparmor.d/disable/bwrap-userns-restrict
+sudo apparmor_parser -R /etc/apparmor.d/bwrap-userns-restrict
+```
+
+If the old profile is already in `/etc/apparmor.d/bwrap`, unload it with
+`sudo apparmor_parser -R /etc/apparmor.d/bwrap` and replace it in place instead
+of disabling that filename. Do not keep both profile definitions enabled.
+Confirm that the agent uses
+`/usr/bin/bwrap` with `command -v bwrap`, then install and load the replacement:
+
+```bash
+sudo tee /etc/apparmor.d/bwrap > /dev/null << 'EOF'
+abi <abi/4.0>,
+include <tunables/global>
+
+profile bwrap /usr/bin/bwrap flags=(unconfined) {
+  userns,
+  include if exists <local/bwrap>
+}
+EOF
+sudo apparmor_parser -r /etc/apparmor.d/bwrap
+```
+
+Keep the user namespace restriction enabled. This profile permits user namespace
+creation for `/usr/bin/bwrap` without imposing the additional `unpriv_bwrap`
+restrictions on its children; it affects all callers of that executable.
+The agents still enforce their own filesystem and network sandbox policies.
+Restart the agents and verify sandboxed commands and denied writes. Container
+runtime restrictions are separate and may still prevent sandbox startup.
+
 ## workdir
 
 `workdir` is optional. When set, the module pre-creates the directory if it is missing and pre-accepts the Claude Code trust/onboarding prompt for it in `~/.claude.json`. Leave `workdir` unset if you only want the module to install the CLI and configure authentication; users can still open any project interactively and accept the trust dialog per project.
@@ -52,7 +110,7 @@ locals {
 
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.5.3"
+  version           = "5.5.4"
   agent_id          = coder_agent.main.id
   workdir           = local.claude_workdir
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -83,7 +141,7 @@ resource "coder_app" "claude" {
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.5.3"
+  version           = "5.5.4"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   enable_ai_gateway = true
@@ -107,7 +165,7 @@ By default the module wires `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN` via 
 ```tf
 module "claude-code" {
   source                = "registry.coder.com/coder/claude-code/coder"
-  version               = "5.5.3"
+  version               = "5.5.4"
   agent_id              = coder_agent.main.id
   workdir               = "/home/coder/project"
   enable_ai_gateway     = true
@@ -127,7 +185,7 @@ Setting `managed_settings = null` removes this module's policy file on the next 
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.5.3"
+  version           = "5.5.4"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -156,7 +214,7 @@ Setting `api_key_helper = null` removes the module's registration file and `~/.c
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.5.3"
+  version  = "5.5.4"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -175,7 +233,7 @@ Or, sourcing from AWS Secrets Manager:
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.5.3"
+  version  = "5.5.4"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -200,7 +258,7 @@ This example shows version pinning, a pre-installed binary path, a custom model,
 ```tf
 module "claude-code" {
   source   = "registry.coder.com/coder/claude-code/coder"
-  version  = "5.5.3"
+  version  = "5.5.4"
   agent_id = coder_agent.main.id
   workdir  = "/home/coder/project"
 
@@ -264,7 +322,7 @@ Downstream `coder_script` resources can wait for this module's install pipeline 
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.5.3"
+  version           = "5.5.4"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"
@@ -294,7 +352,7 @@ Set `use_bedrock = true` to route Claude Code through Amazon Bedrock. The module
 ```tf
 module "claude-code" {
   source      = "registry.coder.com/coder/claude-code/coder"
-  version     = "5.5.3"
+  version     = "5.5.4"
   agent_id    = coder_agent.main.id
   workdir     = "/home/coder/project"
   use_bedrock = true
@@ -347,7 +405,7 @@ Set `use_vertex = true` to route Claude Code through Google Vertex AI. The modul
 ```tf
 module "claude-code" {
   source     = "registry.coder.com/coder/claude-code/coder"
-  version    = "5.5.3"
+  version    = "5.5.4"
   agent_id   = coder_agent.main.id
   workdir    = "/home/coder/project"
   use_vertex = true
@@ -382,7 +440,7 @@ This example uses the Azure default credential chain. Attach a managed identity 
 ```tf
 module "claude-code" {
   source           = "registry.coder.com/coder/claude-code/coder"
-  version          = "5.5.3"
+  version          = "5.5.4"
   agent_id         = coder_agent.main.id
   workdir          = "/home/coder/project"
   use_foundry      = true
@@ -426,7 +484,7 @@ Set `anthropic_base_url` to point Claude Code at a self-hosted gateway or proxy 
 ```tf
 module "claude-code" {
   source             = "registry.coder.com/coder/claude-code/coder"
-  version            = "5.5.3"
+  version            = "5.5.4"
   agent_id           = coder_agent.main.id
   workdir            = "/home/coder/project"
   anthropic_base_url = "https://llm-gateway.example.com/anthropic"
@@ -445,7 +503,7 @@ The module automatically tags every span and metric with `coder.workspace_id`, `
 ```tf
 module "claude-code" {
   source            = "registry.coder.com/coder/claude-code/coder"
-  version           = "5.5.3"
+  version           = "5.5.4"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   anthropic_api_key = "xxxx-xxxxx-xxxx"
