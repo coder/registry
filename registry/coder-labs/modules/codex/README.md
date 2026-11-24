@@ -13,7 +13,7 @@ Install and configure the [Codex CLI](https://github.com/openai/codex) in your w
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.5.2"
+  version        = "5.5.3"
   agent_id       = coder_agent.main.id
   openai_api_key = var.openai_api_key
 }
@@ -30,7 +30,14 @@ fallback requires support for unprivileged user namespace creation.
 
 On Ubuntu 24.04, installing the package may not be sufficient: an additional
 AppArmor profile may need to be installed and loaded by the workspace or host
-administrator. Follow OpenAI's [OS-specific sandbox prerequisites](https://developers.openai.com/codex/concepts/sandboxing#prerequisites).
+administrator. Use the [bubblewrap profile and migration steps in the Claude Code module](../../../coder/modules/claude-code/README.md#ubuntu-2404-apparmor-profile),
+which support both Codex and Claude Code while keeping
+`kernel.apparmor_restrict_unprivileged_userns=1`.
+
+> [!WARNING]
+> Ubuntu's `bwrap-userns-restrict` profile allows Codex to run but blocks the nested user namespace used by Claude Code's seccomp helper. If both agents share a workspace, replace that profile using the steps linked above. Disabling the user namespace sysctl does not remove the loaded profile's restrictions.
+
+See OpenAI's [OS-specific sandbox prerequisites](https://developers.openai.com/codex/concepts/sandboxing#prerequisites) for other platforms.
 The module does not install system packages or change host security settings.
 
 After validating the CLI, the module logs a non-fatal warning on Linux when
@@ -48,7 +55,7 @@ API-key authentication when explicitly configured. Existing authentication is le
 ```tf
 module "codex" {
   source        = "registry.coder.com/coder-labs/codex/coder"
-  version       = "5.5.2"
+  version       = "5.5.3"
   agent_id      = coder_agent.main.id
   manage_config = false
 }
@@ -70,7 +77,7 @@ locals {
 
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.5.2"
+  version        = "5.5.3"
   agent_id       = coder_agent.main.id
   workdir        = local.codex_workdir
   openai_api_key = var.openai_api_key
@@ -101,7 +108,7 @@ resource "coder_app" "codex" {
 ```tf
 module "codex" {
   source            = "registry.coder.com/coder-labs/codex/coder"
-  version           = "5.5.2"
+  version           = "5.5.3"
   agent_id          = coder_agent.main.id
   workdir           = "/home/coder/project"
   enable_ai_gateway = true
@@ -125,7 +132,7 @@ When `enable_ai_gateway = true`, the module configures Codex to use the `aigatew
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.5.2"
+  version        = "5.5.3"
   agent_id       = coder_agent.main.id
   workdir        = "/home/coder/project"
   openai_api_key = var.openai_api_key
@@ -171,7 +178,7 @@ The module exposes the `scripts` output: an ordered list of `coder exp sync` nam
 ```tf
 module "codex" {
   source         = "registry.coder.com/coder-labs/codex/coder"
-  version        = "5.5.2"
+  version        = "5.5.3"
   agent_id       = coder_agent.main.id
   openai_api_key = var.openai_api_key
 }
