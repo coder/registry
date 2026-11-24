@@ -1,0 +1,13 @@
+# coder-bridge image. Build from the template directory, with kubectl-ate
+# from Agent Substrate in the directory:
+#   docker build -f build/Dockerfile.bridge -t <bridge image> .
+FROM golang:1.25 AS build
+WORKDIR /src
+COPY bridge/go.mod ./
+COPY bridge/cmd ./cmd
+RUN CGO_ENABLED=0 go build -trimpath -ldflags=-s -o /out/coder-bridge ./cmd/coder-bridge
+
+FROM gcr.io/distroless/base-debian12:nonroot
+COPY --from=build /out/coder-bridge /coder-bridge
+COPY kubectl-ate /usr/local/bin/kubectl-ate
+ENTRYPOINT ["/coder-bridge"]

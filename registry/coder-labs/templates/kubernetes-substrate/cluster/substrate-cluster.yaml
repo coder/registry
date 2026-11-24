@@ -1,0 +1,169 @@
+# The Substrate cluster side of the kubernetes-substrate template: the worker pool for
+# Coder workspaces and coder-bridge. Apply after Agent Substrate is
+# installed. Secrets coder-kube and coder-bridge-tls are created separately;
+# see README.md in this directory.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: coder-workspaces
+---
+# One worker per running workspace, prebuilds included. A suspended
+# workspace needs no worker. Creating the actor template also needs one
+# free worker for a short time, for the golden actor. The memory request is
+# below the limit so that 5 workers fit on a 32 GiB host: an actor touches
+# much less than its 4 GiB.
+apiVersion: ate.dev/v1alpha1
+kind: WorkerPool
+metadata:
+  name: coder-microvm
+  namespace: coder-workspaces
+  labels:
+    workload: coder-microvm
+spec:
+  replicas: 5
+  sandboxClasses:
+    - name: microvm
+      configRef:
+        name: microvm
+  workerImage: WORKER_IMAGE_MICROVM
+  template:
+    resources:
+      limits:
+        cpu: "2"
+        memory: 6Gi
+      requests:
+        cpu: 500m
+        memory: 4608Mi
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: coder-bridge
+  labels:
+    # ate-system admits API clients only from labeled namespaces.
+    ate.dev/api-access: "true"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bridge
+  namespace: coder-bridge
+---
+# kubectl-ate reads the API server's trust bundle from ClusterTrustBundles.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: coder-bridge-trust
+rules:
+  - apiGroups: ["certificates.k8s.io"]
+    resources: ["clustertrustbundles"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: coder-bridge-trust
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: coder-bridge-trust
+subjects:
+  - kind: ServiceAccount
+    name: bridge
+    namespace: coder-bridge
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coder-bridge
+  namespace: coder-bridge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: coder-bridge
+  template:
+    metadata:
+      labels:
+        app: coder-bridge
+    spec:
+      serviceAccountName: bridge
+      containers:
+        - name: bridge
+          image: BRIDGE_IMAGE
+          args:
+            - --coder-upstream=CODER_UPSTREAM
+            - --coder-kube-api=CODER_KUBE_API
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests: { cpu: 100m, memory: 64Mi }
+            limits: { cpu: "1", memory: 256Mi }
+          volumeMounts:
+            - { name: tls, mountPath: /tls, readOnly: true }
+            - { name: coder-kube, mountPath: /coder-kube, readOnly: true }
+            - { name: ate, mountPath: /var/run/secrets/ate, readOnly: true }
+            - { name: trust, mountPath: /trust, readOnly: true }
+            - { name: home, mountPath: /home/nonroot }
+      volumes:
+        - name: tls
+          secret:
+            secretName: coder-bridge-tls
+        - name: coder-kube
+          secret:
+            secretName: coder-kube
+        - name: ate
+          projected:
+            sources:
+              - serviceAccountToken:
+                  audience: api.ate-system.svc
+                  expirationSeconds: 3600
+                  path: token
+        - name: trust
+          projected:
+            sources:
+              - clusterTrustBundle:
+                  signerName: servicedns.podcert.ate.dev/identity
+                  labelSelector:
+                    matchLabels:
+                      podcert.ate.dev/canarying: live
+                  path: servicedns.pem
+        - name: home
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coder-bridge
+  namespace: coder-bridge
+spec:
+  selector:
+    app: coder-bridge
+  ports:
+    - { name: coder, port: 443, targetPort: 8443 }
+    - { name: broker, port: 80, targetPort: 8080 }
+---
+# Only the egress gateway may reach the bridge: actors reach it through
+# their egress policy, and nothing else needs to.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: coder-bridge
+  namespace: coder-bridge
+spec:
+  podSelector:
+    matchLabels:
+      app: coder-bridge
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ate-system
+          podSelector:
+            matchLabels:
+              app: atenet-egress
