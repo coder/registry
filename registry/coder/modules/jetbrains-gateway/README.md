@@ -20,7 +20,7 @@ Consult the [JetBrains documentation](https://www.jetbrains.com/help/idea/prereq
 module "jetbrains_gateway" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jetbrains-gateway/coder"
-  version        = "1.2.6"
+  version        = "1.3.0"
   agent_id       = coder_agent.main.id
   folder         = "/home/coder/example"
   jetbrains_ides = ["CL", "GO", "IU", "PY", "WS"]
@@ -38,7 +38,7 @@ module "jetbrains_gateway" {
 module "jetbrains_gateway" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jetbrains-gateway/coder"
-  version        = "1.2.6"
+  version        = "1.3.0"
   agent_id       = coder_agent.main.id
   folder         = "/home/coder/example"
   jetbrains_ides = ["GO", "WS"]
@@ -52,7 +52,7 @@ module "jetbrains_gateway" {
 module "jetbrains_gateway" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jetbrains-gateway/coder"
-  version        = "1.2.6"
+  version        = "1.3.0"
   agent_id       = coder_agent.main.id
   folder         = "/home/coder/example"
   jetbrains_ides = ["IU", "PY"]
@@ -67,7 +67,7 @@ module "jetbrains_gateway" {
 module "jetbrains_gateway" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jetbrains-gateway/coder"
-  version        = "1.2.6"
+  version        = "1.3.0"
   agent_id       = coder_agent.main.id
   folder         = "/home/coder/example"
   jetbrains_ides = ["IU", "PY"]
@@ -93,7 +93,7 @@ module "jetbrains_gateway" {
 module "jetbrains_gateway" {
   count          = data.coder_workspace.me.start_count
   source         = "registry.coder.com/coder/jetbrains-gateway/coder"
-  version        = "1.2.6"
+  version        = "1.3.0"
   agent_id       = coder_agent.main.id
   folder         = "/home/coder/example"
   jetbrains_ides = ["GO", "WS"]
@@ -111,7 +111,7 @@ Due to the highest priority of the `ide_download_link` parameter in the `(jetbra
 module "jetbrains_gateway" {
   count              = data.coder_workspace.me.start_count
   source             = "registry.coder.com/coder/jetbrains-gateway/coder"
-  version            = "1.2.6"
+  version            = "1.3.0"
   agent_id           = coder_agent.main.id
   folder             = "/home/coder/example"
   jetbrains_ides     = ["GO", "WS"]
@@ -120,6 +120,25 @@ module "jetbrains_gateway" {
   default            = "GO"
 }
 ```
+
+### Air-gapped mirror built with `jetbrains-clients-downloader`
+
+Point `products_json_url` at the `products.json` that [`jetbrains-clients-downloader`](https://www.jetbrains.com/help/idea/fully-offline-mode.html) writes to your mirror. The module reads the build number, version, and download link of the selected IDE from that file on every build, so refreshing the mirror is enough to pick up a new release. Relative download links are resolved against the directory of the file. Use `{code}` to read the per-IDE files instead, e.g. `https://mirror.internal.site/backends/{code}/products.json`.
+
+```tf
+module "jetbrains_gateway" {
+  count             = data.coder_workspace.me.start_count
+  source            = "registry.coder.com/coder/jetbrains-gateway/coder"
+  version           = "1.3.0"
+  agent_id          = coder_agent.main.id
+  folder            = "/home/coder/example"
+  jetbrains_ides    = ["GO", "PY"]
+  default           = "GO"
+  products_json_url = "https://mirror.internal.site/backends/products.json"
+}
+```
+
+When `products_json_url` is set, `latest`, `jetbrains_ide_versions`, `releases_base_link`, and `download_base_link` are ignored.
 
 ## Supported IDEs
 
