@@ -9,61 +9,10 @@ import {
   runTerraformApply,
   runTerraformInit,
   testRequiredVariables,
-  type TerraformState,
   writeFileContainer,
 } from "~test";
 
 setDefaultTimeout(30_000);
-
-// executes the coder script after installing pip
-const executeScriptInContainerWithPip = async (
-  state: TerraformState,
-  image: string,
-  shell = "sh",
-): Promise<{
-  exitCode: number;
-  stdout: string[];
-  stderr: string[];
-}> => {
-  const instance = findResourceInstance(state, "coder_script");
-  const id = await runContainer(image);
-  const respPipx = await execContainer(id, [shell, "-c", "apk add pipx"]);
-  const resp = await execContainer(id, [shell, "-c", instance.script]);
-  const stdout = resp.stdout.trim().split("\n");
-  const stderr = resp.stderr.trim().split("\n");
-  return {
-    exitCode: resp.exitCode,
-    stdout,
-    stderr,
-  };
-};
-
-// executes the coder script after installing pip
-const executeScriptInContainerWithUv = async (
-  state: TerraformState,
-  image: string,
-  shell = "sh",
-): Promise<{
-  exitCode: number;
-  stdout: string[];
-  stderr: string[];
-}> => {
-  const instance = findResourceInstance(state, "coder_script");
-  const id = await runContainer(image);
-  const respPipx = await execContainer(id, [
-    shell,
-    "-c",
-    "apk --no-cache add uv gcc musl-dev linux-headers && uv venv",
-  ]);
-  const resp = await execContainer(id, [shell, "-c", instance.script]);
-  const stdout = resp.stdout.trim().split("\n");
-  const stderr = resp.stderr.trim().split("\n");
-  return {
-    exitCode: resp.exitCode,
-    stdout,
-    stderr,
-  };
-};
 
 describe("jupyterlab", async () => {
   await runTerraformInit(import.meta.dir);
@@ -85,30 +34,37 @@ describe("jupyterlab", async () => {
     ]);
   });
 
-  // TODO: Add faster test to run with uv.
-  // currently times out.
-  // it("runs with uv", async () => {
-  //   const state = await runTerraformApply(import.meta.dir, {
-  //     agent_id: "foo",
-  //   });
-  //   const output = await executeScriptInContainerWithUv(state, "python:3-alpine");
-  //   expect(output.exitCode).toBe(0);
-  //   expect(output.stdout).toEqual([
-  //     "Checking for a supported installer",
-  //     "uv is installed",
-  //     "\u001B[0;1mInstalling jupyterlab!",
-  //     "🥳 jupyterlab has been installed",
-  //     "👷 Starting jupyterlab in background...check logs at /tmp/jupyterlab.log",
-  //   ]);
-  // });
-
-  // TODO: Add faster test to run with pipx.
-  // currently times out.
-  // it("runs with pipx", async () => {
-  //   ...
-  //   const output = await executeScriptInContainerWithPip(state, "alpine");
-  //   ...
-  // });
+  for (const installer of ["pipx", "uv"]) {
+    it(`propagates ${installer} installation failures`, async () => {
+      const state = await runTerraformApply(import.meta.dir, {
+        agent_id: "foo",
+      });
+      const script = findResourceInstance(
+        state,
+        "coder_script",
+        "jupyterlab",
+      ).script;
+      const id = await runContainer("alpine");
+      try {
+        await writeFileContainer(
+          id,
+          `/usr/local/bin/${installer}`,
+          "#!/bin/sh\necho installer-failed >&2\nexit 42\n",
+        );
+        await execContainer(id, [
+          "chmod",
+          "755",
+          `/usr/local/bin/${installer}`,
+        ]);
+        const result = await execContainer(id, ["sh", "-c", script]);
+        expect(result.exitCode).toBe(42);
+        expect(result.stderr).toContain("installer-failed");
+        expect(result.stdout).not.toContain("Starting jupyterlab");
+      } finally {
+        await removeContainer(id);
+      }
+    });
+  }
 
   it("writes ~/.jupyter/jupyter_server_config.json when config provided", async () => {
     const id = await runContainer("alpine");

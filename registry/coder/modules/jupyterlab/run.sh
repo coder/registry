@@ -1,4 +1,6 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
+set -e
+
 INSTALLER=""
 check_available_installer() {
   # check if pipx is installed
@@ -28,14 +30,14 @@ if ! command -v jupyter-lab > /dev/null 2>&1; then
   printf "$${BOLD}Installing jupyterlab!\n"
   case $INSTALLER in
     uv)
-      uv pip install -q jupyterlab \
-        && printf "%s\n" "🥳 jupyterlab has been installed"
+      uv pip install -q jupyterlab
+      printf "%s\n" "🥳 jupyterlab has been installed"
       JUPYTER="$HOME/.venv/bin/jupyter-lab"
       ;;
     pipx)
-      pipx install jupyterlab \
-        && printf "%s\n" "🥳 jupyterlab has been installed"
-      JUPYTER="$HOME/.local/bin/jupyter-lab"
+      pipx install jupyterlab
+      printf "%s\n" "🥳 jupyterlab has been installed"
+      JUPYTER="$(pipx environment --value PIPX_BIN_DIR)/jupyter-lab"
       ;;
   esac
 else
@@ -43,8 +45,22 @@ else
   JUPYTER=$(command -v jupyter-lab)
 fi
 
+# pipx shares the pip library but does not create a pip executable in the venv.
+# Keep notebook !pip commands in the same environment as the default kernel,
+# including workspaces where JupyterLab was installed before this module ran.
+if command -v pipx > /dev/null 2>&1; then
+  PIPX_JUPYTER_BIN="$(pipx environment --value PIPX_LOCAL_VENVS)/jupyterlab/bin"
+  if [ "$(readlink -f "$JUPYTER")" = "$PIPX_JUPYTER_BIN/jupyter-lab" ]; then
+    if [ ! -x "$PIPX_JUPYTER_BIN/pip" ]; then
+      pipx inject jupyterlab pip --pip-args=--ignore-installed
+    fi
+    export PATH="$PIPX_JUPYTER_BIN:$PATH"
+  fi
+fi
+
+mkdir -p "$(dirname "${LOG_PATH}")"
 printf "👷 Starting jupyterlab in background..."
-printf "check logs at ${LOG_PATH}"
+printf '%s\n' "check logs at ${LOG_PATH}"
 "$JUPYTER" --no-browser \
   --ServerApp.base_url=${BASE_URL} \
   --ServerApp.ip='${HOST}' \

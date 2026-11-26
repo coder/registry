@@ -19,10 +19,23 @@ must pass through Coder's application proxy.
 module "jupyterlab" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jupyterlab/coder"
-  version  = "1.3.1"
+  version  = "1.3.2"
   agent_id = coder_agent.main.id
 }
 ```
+
+## Installing Python packages
+
+With the default Python kernel from a pipx installation, `!pip install pandas`
+installs into the kernel's environment. The module also repairs existing pipx
+installations on the next workspace start, without changing the terminal's `PATH`.
+
+For a separately configured kernel, use `%pip install pandas` to target that
+kernel's Python environment.
+
+JupyterLab logs now default to
+`~/.coder-modules/coder/jupyterlab/logs/run.log` instead of `/tmp/jupyterlab.log`.
+An explicitly configured `log_path` is still respected.
 
 ## External network access
 
@@ -35,7 +48,7 @@ module "jupyterlab" {
 module "jupyterlab" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jupyterlab/coder"
-  version  = "1.3.1"
+  version  = "1.3.2"
   agent_id = coder_agent.main.id
   host     = "0.0.0.0"
 }
@@ -49,7 +62,7 @@ JupyterLab is automatically configured to work with Coder's iframe embedding. Fo
 module "jupyterlab" {
   count    = data.coder_workspace.me.start_count
   source   = "registry.coder.com/coder/jupyterlab/coder"
-  version  = "1.3.1"
+  version  = "1.3.2"
   agent_id = coder_agent.main.id
   config = {
     ServerApp = {

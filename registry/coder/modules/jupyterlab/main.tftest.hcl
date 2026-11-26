@@ -11,6 +11,11 @@ run "secure_defaults" {
   }
 
   assert {
+    condition     = var.log_path == "$HOME/.coder-modules/coder/jupyterlab/logs/run.log"
+    error_message = "the default log must live under the module root"
+  }
+
+  assert {
     condition     = strcontains(coder_script.jupyterlab.script, "--ServerApp.ip='127.0.0.1'")
     error_message = "the default script must bind JupyterLab to 127.0.0.1"
   }
@@ -33,6 +38,20 @@ run "secure_defaults" {
   assert {
     condition     = one(coder_app.jupyterlab.healthcheck).url == "http://localhost:19999/api"
     error_message = "the JupyterLab healthcheck URL must remain unchanged"
+  }
+}
+
+run "custom_log_path" {
+  command = plan
+
+  variables {
+    agent_id = "test-agent-id"
+    log_path = "/var/log/custom-jupyterlab.log"
+  }
+
+  assert {
+    condition     = strcontains(coder_script.jupyterlab.script, "> \"/var/log/custom-jupyterlab.log\" 2>&1")
+    error_message = "an explicitly configured log path must be preserved"
   }
 }
 
