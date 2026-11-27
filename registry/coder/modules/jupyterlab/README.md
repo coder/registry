@@ -29,13 +29,11 @@ module "jupyterlab" {
 With the default Python kernel from a pipx installation, `!pip install pandas`
 installs into the kernel's environment. The module also repairs existing pipx
 installations on the next workspace start, without changing the terminal's `PATH`.
+If pip cannot be added to the environment, the module logs a warning and still
+starts JupyterLab.
 
 For a separately configured kernel, use `%pip install pandas` to target that
 kernel's Python environment.
-
-JupyterLab logs now default to
-`~/.coder-modules/coder/jupyterlab/logs/run.log` instead of `/tmp/jupyterlab.log`.
-An explicitly configured `log_path` is still respected.
 
 ## External network access
 

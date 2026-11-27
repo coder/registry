@@ -11,8 +11,8 @@ run "secure_defaults" {
   }
 
   assert {
-    condition     = var.log_path == "$HOME/.coder-modules/coder/jupyterlab/logs/run.log"
-    error_message = "the default log must live under the module root"
+    condition     = var.log_path == "/tmp/jupyterlab.log"
+    error_message = "the default log path must remain unchanged"
   }
 
   assert {

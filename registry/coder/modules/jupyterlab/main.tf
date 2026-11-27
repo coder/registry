@@ -36,9 +36,9 @@ variable "agent_id" {
 }
 
 variable "log_path" {
-  description = "The path to log jupyterlab to."
   type        = string
-  default     = "$HOME/.coder-modules/coder/jupyterlab/logs/run.log"
+  description = "The path to log jupyterlab to."
+  default     = "/tmp/jupyterlab.log"
 }
 
 variable "host" {
